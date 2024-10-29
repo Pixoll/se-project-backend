@@ -1,0 +1,30 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Software Engineering class project - API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Ping"
+    }
+  ],
+  "paths": {
+    "/ping": {
+      "get": {
+        "summary": "Check if the API is available.",
+        "tags": ["Ping"],
+        "responses": {
+          "200": {
+            "description": "API is available."
+          }
+        }
+      }
+    }
+  }
+}
