@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../logger";
+import { doesTokenExist, getTokenType, TokenType } from "../tokens";
 
 export abstract class Endpoint {
     protected constructor(public readonly path: string) {
@@ -12,29 +13,57 @@ export abstract class Endpoint {
         response.status(HTTPStatus.OK).send(data);
     }
 
+    protected sendStatus<R extends Response>(
+        response: R,
+        status: HTTPStatus,
+        ...[data]: IfUnknown<ResponseBodyType<R>, [], [data: ResponseBodyType<R>]>
+    ): void {
+        response.status(status).send(data);
+    }
+
     protected sendError(response: Response, status: HTTPStatus, message: string): void {
         sendError(response, status, message);
     }
 }
 
-export function GetMethod<T extends EndpointMethod>(path: string = ""): TypedDecorator<T> {
-    return makeMethodDecorator(GetMethod.name, path);
+export function GetMethod<T extends EndpointMethod>(options: string | MethodDecoratorOptions = {}): TypedDecorator<T> {
+    if (typeof options === "string") {
+        options = { path: options };
+    }
+
+    return makeMethodDecorator(GetMethod.name, Method.GET, options);
 }
 
-export function PostMethod<T extends EndpointMethod>(path: string = ""): TypedDecorator<T> {
-    return makeMethodDecorator(PostMethod.name, path);
+export function PostMethod<T extends EndpointMethod>(options: string | MethodDecoratorOptions = {}): TypedDecorator<T> {
+    if (typeof options === "string") {
+        options = { path: options };
+    }
+
+    return makeMethodDecorator(PostMethod.name, Method.POST, options);
 }
 
-export function PutMethod<T extends EndpointMethod>(path: string = ""): TypedDecorator<T> {
-    return makeMethodDecorator(PutMethod.name, path);
+export function PutMethod<T extends EndpointMethod>(options: string | MethodDecoratorOptions = {}): TypedDecorator<T> {
+    if (typeof options === "string") {
+        options = { path: options };
+    }
+
+    return makeMethodDecorator(PutMethod.name, Method.PUT, options);
 }
 
-export function PatchMethod<T extends EndpointMethod>(path: string = ""): TypedDecorator<T> {
-    return makeMethodDecorator(PatchMethod.name, path);
+export function PatchMethod<T extends EndpointMethod>(options: string | MethodDecoratorOptions = {}): TypedDecorator<T> {
+    if (typeof options === "string") {
+        options = { path: options };
+    }
+
+    return makeMethodDecorator(PatchMethod.name, Method.PATCH, options);
 }
 
-export function DeleteMethod<T extends EndpointMethod>(path: string = ""): TypedDecorator<T> {
-    return makeMethodDecorator(DeleteMethod.name, path);
+export function DeleteMethod<T extends EndpointMethod>(options: string | MethodDecoratorOptions = {}): TypedDecorator<T> {
+    if (typeof options === "string") {
+        options = { path: options };
+    }
+
+    return makeMethodDecorator(DeleteMethod.name, Method.DELETE, options);
 }
 
 export const methodDecoratorNames = [
@@ -500,7 +529,11 @@ class DecoratorContextError extends Error {
     }
 }
 
-function makeMethodDecorator<T extends EndpointMethod>(name: string, path: string): TypedDecorator<T> {
+function makeMethodDecorator<T extends EndpointMethod>(
+    name: string,
+    method: Method,
+    options: MethodDecoratorOptions
+): TypedDecorator<T> {
     return function (target, propertyKey, descriptor) {
         const decoratorErrorArgs: [string, ...Parameters<TypedDecorator<T>>] = [name, target, propertyKey, descriptor];
 
@@ -513,22 +546,42 @@ function makeMethodDecorator<T extends EndpointMethod>(name: string, path: strin
         }
 
         for (const decoratorName of methodDecoratorNames) {
-            if (decoratorName in descriptor.value && decoratorName !== name) {
+            if (decoratorName in descriptor.value) {
                 throw new DecoratorContextError(
                     "Target element cannot contain more than one method decorator.", ...decoratorErrorArgs
                 );
             }
         }
 
-        if (name in descriptor.value) {
-            // @ts-expect-error: functions can have properties
-            const props = descriptor.value[name] as Record<string, unknown>;
-            props.path = path;
-            return;
+        if (options.requiresAuthorization) {
+            const oldValue = descriptor.value;
+
+            descriptor.value = (async function (this: Endpoint, request: Request, response: Response): Promise<void> {
+                const bearerToken = request.headers.authorization;
+                if (!bearerToken) {
+                    this.sendError(response, HTTPStatus.UNAUTHORIZED, "Missing session token.");
+                    return;
+                }
+
+                const token = bearerToken.slice(7);
+
+                if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)
+                    || !doesTokenExist(token)
+                    || (options.requiresAuthorization && getTokenType(token) !== options.requiresAuthorization)
+                ) {
+                    this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid token.");
+                    return;
+                }
+
+                oldValue.apply(this, [request, response]);
+            }) as T;
         }
 
         Object.assign(descriptor.value, {
-            [name]: { path },
+            [name]: {
+                method,
+                path: options.path ?? "",
+            },
         });
     };
 }
@@ -539,6 +592,11 @@ type EndpointMethod = (
     response: Response<any, any>
 ) => Promise<void> | void;
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+type MethodDecoratorOptions = {
+    path?: string;
+    requiresAuthorization?: TokenType;
+};
 
 type TypedDecorator<T> = (target: unknown, propertyKey: string, descriptor: TypedPropertyDescriptor<T>) => void;
 
