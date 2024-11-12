@@ -4,3 +4,4 @@
 /.tsbuildinfo
 /.env
 /**/*.js.map
+/dist
