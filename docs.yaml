@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Software Engineering class project - API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+tags:
+  - name: Ping
+components:
+  responses:
+    UnauthorizedError:
+      description: Session token is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          type: integer
+          description: HTTP status code.
+        message:
+          type: string
+          description: Message explaining the cause.
+  securitySchemes:
+    SessionToken:
+      type: http
+      scheme: bearer
+      description: The admin's session token.
+paths:
+  /ping:
+    get:
+      tags: [ Ping ]
+      summary: Check if the API is available.
+      responses:
+        200:
+          description: API is available.

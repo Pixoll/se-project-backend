@@ -2,10 +2,11 @@ import { Router } from "express";
 import { readFileSync } from "fs";
 import path from "path";
 import swaggerUi from "swagger-ui-express";
+import yaml from "yaml";
 import logger from "./logger";
 
 export default function loadSwaggerV1Docs(router: Router, v1Path: string): void {
-    const swaggerSpecs = JSON.parse(readFileSync(path.join(__dirname, "../docs.json"), "utf-8"));
+    const swaggerSpecs = yaml.parse(readFileSync(path.join(__dirname, "../docs.yaml"), "utf-8"));
 
     router.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
