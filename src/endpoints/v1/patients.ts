@@ -1,10 +1,74 @@
 import { Request, Response } from "express";
-import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, NewPatient } from "../../db";
-import { Endpoint, HTTPStatus, PostMethod } from "../base";
+import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, MedicalRecord, NewPatient, Patient } from "../../db";
+import { Endpoint, GetMethod, HTTPStatus, PostMethod } from "../base";
 
 export class PatientsEndpoint extends Endpoint {
     public constructor() {
         super("/patients");
+    }
+
+    @GetMethod("/:rut")
+    public async getPatient(request: Request<{ rut: string }>, response: Response<PatientResponse>): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const patient = await db
+            .selectFrom("patient as p")
+            .innerJoin("blood_type as bt", "bt.id", "p.blood_type_id")
+            .innerJoin("insurance_type as it", "it.id", "p.insurance_type_id")
+            .leftJoin("medical_record as mr", "mr.patient_rut", "p.rut")
+            .select([
+                "p.first_name as firstName",
+                "p.second_name as secondName",
+                "p.first_last_name as firstLastName",
+                "p.second_last_name as secondLastName",
+                "p.email",
+                "p.phone",
+                "p.birth_date as birthDate",
+                "p.gender",
+                "p.weight",
+                "p.height",
+                "p.rhesus_factor as rhesusFactor",
+                "bt.name as bloodType",
+                "it.name as insuranceType",
+                "mr.allergies_history as allergiesHistory",
+                "mr.morbidity_history as morbidityHistory",
+                "mr.surgical_history as surgicalHistory",
+                "mr.medications",
+            ])
+            .where("p.rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!patient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        this.sendOk(response, {
+            firstName: patient.firstName,
+            secondName: patient.secondName,
+            firstLastName: patient.firstLastName,
+            secondLastName: patient.secondLastName,
+            email: patient.email,
+            phone: patient.phone,
+            birthDate: patient.birthDate.toLocaleDateString("es-CL"),
+            gender: patient.gender,
+            weight: patient.weight,
+            height: patient.height,
+            rhesusFactor: patient.rhesusFactor,
+            bloodType: patient.bloodType,
+            insuranceType: patient.insuranceType,
+            medicalRecord: {
+                ...patient.allergiesHistory && { allergiesHistory: patient.allergiesHistory },
+                ...patient.morbidityHistory && { morbidityHistory: patient.morbidityHistory },
+                ...patient.surgicalHistory && { surgicalHistory: patient.surgicalHistory },
+                ...patient.medications && { medications: patient.medications },
+            },
+        });
     }
 
     @PostMethod("/:rut")
@@ -262,6 +326,20 @@ type ValidationResult = {
 
 type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "birth_date" | "rut" | "salt" | "session_token">> & {
     birthDate: string;
+};
+
+type PatientResponse = SnakeToCamelRecord<Omit<
+    Patient,
+    "birth_date" | "blood_type_id" | "insurance_type_id" | "password" | "rut" | "salt" | "session_token"
+>> & {
+    birthDate: string;
+    bloodType: string;
+    insuranceType: string;
+    medicalRecord: Partial<NonNullableRecord<SnakeToCamelRecord<Omit<MedicalRecord, "patient_rut">>>>;
+};
+
+type NonNullableRecord<T> = {
+    [K in keyof T]: NonNullable<T[K]>;
 };
 
 type SnakeToCamelRecord<T> = {
