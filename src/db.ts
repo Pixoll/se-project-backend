@@ -156,17 +156,64 @@ export type ClinicUpdate = Updateable<ClinicTable>;
 /**
  * - Table name: `employee`
  * - Primary key: `(rut)`
+ * - Indexes:
+ *   - `(email)`
+ *   - `(phone)`
+ *   - `(session_token)`
  */
 export type EmployeeTable = {
     /**
      * - SQL: `rut varchar(11) primary key`
-     * - Foreign key: `person.rut`
      */
     rut: string;
     /**
      * - SQL: `type enum("admin_staff", "medic") not null`
      */
     type: "admin_staff" | "medic";
+    /**
+     * - SQL: `first_name varchar(32) not null check (first_name != "")`
+     */
+    first_name: string;
+    /**
+     * - SQL: `second_name varchar(32) check (second_name is null or second_name != "")`
+     */
+    second_name: string | null;
+    /**
+     * - SQL: `first_last_name varchar(32) not null check (first_last_name != "")`
+     */
+    first_last_name: string;
+    /**
+     * - SQL: `second_last_name varchar(32) check (second_last_name is null or second_last_name != "")`
+     */
+    second_last_name: string | null;
+    /**
+     * - SQL: `email varchar(64) unique not null check (email regexp "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
+     */
+    email: string;
+    /**
+     * - SQL: `phone int unsigned unique not null check (phone >= 100000000 and phone <= 999999999)`
+     */
+    phone: number;
+    /**
+     * - SQL: `birth_date date not null`
+     */
+    birth_date: Date;
+    /**
+     * - SQL: `gender varchar(12) not null`
+     */
+    gender: string;
+    /**
+     * - SQL: `password char(86) not null check (password != "")`
+     */
+    password: string;
+    /**
+     * - SQL: `salt char(43) not null check (salt != "")`
+     */
+    salt: string;
+    /**
+     * - SQL: `session_token char(86) unique check (session_token is null or session_token != "")`
+     */
+    session_token: string | null;
 };
 
 export type Employee = Selectable<EmployeeTable>;
@@ -257,50 +304,12 @@ export type MedicalRecordUpdate = Updateable<MedicalRecordTable>;
 /**
  * - Table name: `patient`
  * - Primary key: `(rut)`
- */
-export type PatientTable = {
-    /**
-     * - SQL: `rut varchar(11) primary key`
-     * - Foreign key: `person.rut`
-     */
-    rut: string;
-    /**
-     * - SQL: `weight int unsigned not null`
-     */
-    weight: number;
-    /**
-     * - SQL: `height int unsigned not null`
-     */
-    height: number;
-    /**
-     * - SQL: `rhesus_factor enum("+", "-") not null`
-     */
-    rhesus_factor: "+" | "-";
-    /**
-     * - SQL: `blood_type_id int unsigned not null`
-     * - Foreign key: `blood_type.id`
-     */
-    blood_type_id: number;
-    /**
-     * - SQL: `insurance_type_id int unsigned not null`
-     * - Foreign key: `insurance_type.id`
-     */
-    insurance_type_id: number;
-};
-
-export type Patient = Selectable<PatientTable>;
-export type NewPatient = Insertable<PatientTable>;
-export type PatientUpdate = Updateable<PatientTable>;
-
-/**
- * - Table name: `person`
- * - Primary key: `(rut)`
  * - Indexes:
  *   - `(email)`
  *   - `(phone)`
  *   - `(session_token)`
  */
-export type PersonTable = {
+export type PatientTable = {
     /**
      * - SQL: `rut varchar(11) primary key`
      */
@@ -334,13 +343,31 @@ export type PersonTable = {
      */
     birth_date: Date;
     /**
-     * - SQL: `age int unsigned not null`
-     */
-    age: number;
-    /**
      * - SQL: `gender varchar(12) not null`
      */
     gender: string;
+    /**
+     * - SQL: `weight int unsigned not null`
+     */
+    weight: number;
+    /**
+     * - SQL: `height int unsigned not null`
+     */
+    height: number;
+    /**
+     * - SQL: `rhesus_factor enum("+", "-") not null`
+     */
+    rhesus_factor: "+" | "-";
+    /**
+     * - SQL: `blood_type_id int unsigned not null`
+     * - Foreign key: `blood_type.id`
+     */
+    blood_type_id: number;
+    /**
+     * - SQL: `insurance_type_id int unsigned not null`
+     * - Foreign key: `insurance_type.id`
+     */
+    insurance_type_id: number;
     /**
      * - SQL: `password char(86) not null check (password != "")`
      */
@@ -355,9 +382,9 @@ export type PersonTable = {
     session_token: string | null;
 };
 
-export type Person = Selectable<PersonTable>;
-export type NewPerson = Insertable<PersonTable>;
-export type PersonUpdate = Updateable<PersonTable>;
+export type Patient = Selectable<PatientTable>;
+export type NewPatient = Insertable<PatientTable>;
+export type PatientUpdate = Updateable<PatientTable>;
 
 /**
  * - Table name: `schedule`
@@ -429,7 +456,6 @@ export type DB = {
     medic: MedicTable;
     medical_record: MedicalRecordTable;
     patient: PatientTable;
-    person: PersonTable;
     schedule: ScheduleTable;
     specialty: SpecialtyTable;
     time_slot: TimeSlotTable;
