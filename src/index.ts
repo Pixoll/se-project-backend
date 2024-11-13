@@ -1,3 +1,4 @@
+import cors from "cors";
 import { config as dotenvConfig } from "dotenv";
 import express, { Router } from "express";
 import { connectDB } from "./db";
@@ -14,6 +15,7 @@ const PORT = +(process.env.PORT ?? 0) || 3000;
 
 const v1Path = "/api/v1";
 
+app.use(cors());
 app.use(express.json());
 
 void async function (): Promise<void> {
