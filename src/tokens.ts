@@ -4,7 +4,6 @@ import { db } from "./db";
 
 // noinspection JSUnusedGlobalSymbols
 export enum TokenType {
-    INVALID = -1,
     PATIENT,
     MEDIC,
     ADMIN,
@@ -13,16 +12,23 @@ export enum TokenType {
 const tokens = new Map<string, TokenType>();
 
 export async function loadTokens(): Promise<void> {
-    const sessionTokens = await db
-        .selectFrom("person as p")
-        .leftJoin("patient as a", "a.id", "p.id")
-        .leftJoin("employee as e", "e.id", "p.id")
+    const patientTokens = await db
+        .selectFrom("patient")
+        .select("session_token as token")
+        .execute();
+
+    for (const { token } of patientTokens) {
+        if (token) {
+            tokens.set(token, TokenType.PATIENT);
+        }
+    }
+
+    const employeeTokens = await db
+        .selectFrom("employee")
         .select([
-            "p.session_token as token",
+            "session_token as token",
             sql<TokenType>`(
                 case
-                    when a.id is null and e.id is null then ${TokenType.INVALID}
-                    when e.id is null then ${TokenType.PATIENT}
                     when e.type = "medic" then ${TokenType.MEDIC}
                     else ${TokenType.ADMIN}
                 end
@@ -30,45 +36,26 @@ export async function loadTokens(): Promise<void> {
         ])
         .execute();
 
-    for (const { token, type } of sessionTokens) {
+    for (const { token, type } of employeeTokens) {
         if (token) {
-            if (type === TokenType.INVALID) {
-                throw new TypeError(`Token ${token} is neither from a patient or an employee.`);
-            }
-
             tokens.set(token, type);
         }
     }
 }
 
-export async function generateToken(id: number): Promise<string> {
+export async function generateToken(rut: string, type: TokenType): Promise<string> {
     let token: string;
     do {
         token = randomBytes(64).toString("base64url");
     } while (tokens.has(token));
 
     await db
-        .updateTable("person")
-        .where("id", "=", id)
+        .updateTable(type === TokenType.PATIENT ? "patient" : "employee")
+        .where("rut", "=", rut)
         .set("session_token", token)
         .execute();
 
-    const result = await db
-        .selectFrom("person as p")
-        .leftJoin("patient as a", "a.id", "p.id")
-        .leftJoin("employee as e", "e.id", "p.id")
-        .select(sql<TokenType>`(
-            case
-                when a.id is null and e.id is null then ${TokenType.INVALID}
-                when e.id is null then ${TokenType.PATIENT}
-                when e.type = "medic" then ${TokenType.MEDIC}
-                else ${TokenType.ADMIN}
-            end
-        )`.as("type"))
-        .where("p.id", "=", id)
-        .execute();
-
-    tokens.set(token, result[0].type);
+    tokens.set(token, type);
 
     return token;
 }
@@ -82,9 +69,11 @@ export function getTokenType(token: string): TokenType | undefined {
 }
 
 export async function revokeToken(token: string): Promise<void> {
-    if (doesTokenExist(token)) {
+    const type = tokens.get(token);
+
+    if (type !== null) {
         await db
-            .updateTable("person")
+            .updateTable(type === TokenType.PATIENT ? "patient" : "employee")
             .where("session_token", "=", token)
             .set("session_token", null)
             .execute();
