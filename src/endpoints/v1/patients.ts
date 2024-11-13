@@ -50,9 +50,9 @@ export class PatientsEndpoint extends Endpoint {
 
         this.sendOk(response, {
             firstName: patient.firstName,
-            secondName: patient.secondName,
+            ...patient.secondName && { secondName: patient.secondName },
             firstLastName: patient.firstLastName,
-            secondLastName: patient.secondLastName,
+            ...patient.secondLastName && { secondLastName: patient.secondLastName },
             email: patient.email,
             phone: patient.phone,
             birthDate: patient.birthDate.toLocaleDateString("es-CL"),
@@ -328,10 +328,19 @@ type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "birth_date" | "rut" | "s
     birthDate: string;
 };
 
-type PatientResponse = SnakeToCamelRecord<Omit<
-    Patient,
-    "birth_date" | "blood_type_id" | "insurance_type_id" | "password" | "rut" | "salt" | "session_token"
+type PatientResponse = SnakeToCamelRecord<Omit<Patient,
+    | "birth_date"
+    | "blood_type_id"
+    | "insurance_type_id"
+    | "password"
+    | "rut"
+    | "salt"
+    | "second_name"
+    | "second_last_name"
+    | "session_token"
 >> & {
+    secondName?: string;
+    secondLastName?: string;
     birthDate: string;
     bloodType: string;
     insuranceType: string;
