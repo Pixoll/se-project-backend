@@ -55,7 +55,7 @@ export class PatientsEndpoint extends Endpoint {
             ...patient.secondLastName && { secondLastName: patient.secondLastName },
             email: patient.email,
             phone: patient.phone,
-            birthDate: patient.birthDate.toLocaleDateString("es-CL"),
+            birthDate: patient.birthDate,
             gender: patient.gender,
             weight: patient.weight,
             height: patient.height,
@@ -142,7 +142,7 @@ export class PatientsEndpoint extends Endpoint {
                 second_last_name: secondLastName,
                 email,
                 phone,
-                birth_date: new Date(birthDate),
+                birth_date: birthDate,
                 gender,
                 weight,
                 height,
@@ -183,7 +183,7 @@ const patientValidators: Record<keyof PatientBody, Validator> = {
         };
     },
     birthDate: async (value: unknown): Promise<ValidationResult> => {
-        const valid = !!value && typeof value === "string" && /^\d{2}-\d{2}-\d{4}$/.test(value);
+        const valid = !!value && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
         return valid ? {
             ok: true,
         } : {

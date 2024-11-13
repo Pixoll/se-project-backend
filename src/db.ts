@@ -122,7 +122,7 @@ export type AppointmentTable = {
     /**
      * - SQL: `date_time datetime not null`
      */
-    date_time: Date;
+    date_time: string;
     /**
      * - SQL: `description varchar(100) not null check (description != "")`
      */
@@ -241,7 +241,7 @@ export type EmployeeTable = {
     /**
      * - SQL: `birth_date date not null`
      */
-    birth_date: Date;
+    birth_date: string;
     /**
      * - SQL: `gender varchar(12) not null`
      */
@@ -382,7 +382,7 @@ export type PatientTable = {
     /**
      * - SQL: `birth_date date not null`
      */
-    birth_date: Date;
+    birth_date: string;
     /**
      * - SQL: `gender varchar(12) not null`
      */
@@ -477,11 +477,11 @@ export type TimeSlotTable = {
     /**
      * - SQL: `start datetime not null`
      */
-    start: Date;
+    start: string;
     /**
      * - SQL: `end datetime not null`
      */
-    end: Date;
+    end: string;
 };
 
 export type TimeSlot = Selectable<TimeSlotTable>;
