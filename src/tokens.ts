@@ -29,7 +29,7 @@ export async function loadTokens(): Promise<void> {
             "session_token as token",
             sql<TokenType>`(
                 case
-                    when e.type = "medic" then ${TokenType.MEDIC}
+                    when type = "medic" then ${TokenType.MEDIC}
                     else ${TokenType.ADMIN}
                 end
             )`.as("type"),
