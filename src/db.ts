@@ -311,15 +311,11 @@ export type MedicUpdate = Updateable<MedicTable>;
 
 /**
  * - Table name: `medical_record`
- * - Primary key: `(id)`
+ * - Primary key: `(patient_rut)`
  */
 export type MedicalRecordTable = {
     /**
-     * - SQL: `id int unsigned primary key auto_increment`
-     */
-    id: Generated<number>;
-    /**
-     * - SQL: `patient_rut varchar(11) not null`
+     * - SQL: `patient_rut varchar(11) primary key`
      * - Foreign key: `patient.rut`
      */
     patient_rut: string;
