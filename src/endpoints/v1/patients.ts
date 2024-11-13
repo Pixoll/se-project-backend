@@ -228,7 +228,7 @@ const patientValidators: Record<keyof PatientBody, Validator> = {
             return {
                 ok: false,
                 status: HTTPStatus.BAD_REQUEST,
-                message: "Invalid rhesusFactor.",
+                message: "Invalid bloodTypeId.",
             };
         }
 
@@ -243,7 +243,7 @@ const patientValidators: Record<keyof PatientBody, Validator> = {
         } : {
             ok: false,
             status: HTTPStatus.BAD_REQUEST,
-            message: "Invalid rhesusFactor.",
+            message: "Invalid bloodTypeId.",
         };
     },
     insuranceTypeId: async (value: unknown): Promise<ValidationResult> => {
