@@ -1,5 +1,6 @@
 // noinspection JSUnusedGlobalSymbols
 
+import { createHash, randomBytes } from "crypto";
 import { ColumnType, Insertable, Kysely, MysqlDialect, Selectable, Updateable } from "kysely";
 import { createPool } from "mysql2";
 import { Field, Next } from "mysql2/typings/mysql/lib/parsers/typeCast";
@@ -8,6 +9,10 @@ import logger from "./logger";
 let connected = false;
 
 export let db: Kysely<DB>;
+
+const rutValidationSequence = [2, 3, 4, 5, 6, 7] as const;
+// eslint-disable-next-line no-useless-escape, max-len
+const emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
 // `db` can't be overwritten outside of this file
 // deferred initialization, must wait for env variables to be ready
@@ -48,6 +53,43 @@ export function connectDB(): void {
 
     logger.log("Database connected.");
 }
+
+export function isValidRut(rut: string): boolean {
+    if (!/^\d{7,}-[\dk]$/i.test(rut)) return false;
+
+    const [digits, expectedVerificationDigit] = rut.split("-");
+    if ((+digits) < 1e6) return false;
+
+    const sum = digits.split("").reverse()
+        .reduce((acc, d, i) => acc + (+d) * rutValidationSequence[i % rutValidationSequence.length], 0);
+
+    const verificationNumber = 11 - sum + Math.trunc(sum / 11) * 11;
+    const verificationDigit = verificationNumber === 10 ? "K" : (verificationNumber % 11).toString();
+    return verificationDigit === expectedVerificationDigit.toUpperCase();
+}
+
+export function isValidEmail(email: string): boolean {
+    return emailRegex.test(email);
+}
+
+export function isValidPhone(phone: number): boolean {
+    return phone >= 100000000 && phone <= 999999999;
+}
+
+export function hashPassword(password: string): HashedPassword {
+    const salt = randomBytes(32).toString("base64url");
+    const hashedPassword = createHash("sha512").update(password + salt).digest("base64url");
+
+    return {
+        password: hashedPassword,
+        salt,
+    };
+}
+
+export type HashedPassword = {
+    password: string;
+    salt: string;
+};
 
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
     ? ColumnType<S, I | undefined, U>
@@ -128,7 +170,8 @@ export type ClinicTable = {
      */
     name: string;
     /**
-     * - SQL: `email varchar(64) not null check (email regexp "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
+     * - SQL: `email varchar(64) not null check (email regexp
+     * "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
      */
     email: string;
     /**
@@ -187,7 +230,8 @@ export type EmployeeTable = {
      */
     second_last_name: string | null;
     /**
-     * - SQL: `email varchar(64) unique not null check (email regexp "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
+     * - SQL: `email varchar(64) unique not null check (email regexp
+     * "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
      */
     email: string;
     /**
@@ -331,7 +375,8 @@ export type PatientTable = {
      */
     second_last_name: string | null;
     /**
-     * - SQL: `email varchar(64) unique not null check (email regexp "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
+     * - SQL: `email varchar(64) unique not null check (email regexp
+     * "^(([^<>()\\[\\]\\\\.,;:\\s@\"]+(\\.[^<>()\\[\\]\\\\.,;:\\s@\"]+)*)|(\".+\"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}])|(([a-za-z\\-0-9]+\\.)+[a-za-z]{2,}))$")`
      */
     email: string;
     /**

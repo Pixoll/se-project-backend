@@ -61,7 +61,12 @@
     ],
     "eqeqeq": "error",
     "prefer-const": "error",
-    "camelcase": "warn",
+    "camelcase": [
+      "warn",
+      {
+        "properties": "never"
+      }
+    ],
     "object-property-newline": [
       "error",
       {
