@@ -1,6 +1,8 @@
+import { createHash } from "crypto";
 import { Request, Response } from "express";
 import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, MedicalRecord, NewPatient, Patient } from "../../db";
-import { Endpoint, GetMethod, HTTPStatus, PostMethod } from "../base";
+import { generateToken, revokeToken, TokenType } from "../../tokens";
+import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PostMethod } from "../base";
 
 export class PatientsEndpoint extends Endpoint {
     public constructor() {
@@ -154,6 +156,51 @@ export class PatientsEndpoint extends Endpoint {
             .execute();
 
         this.sendStatus(response, HTTPStatus.CREATED);
+    }
+
+    @PostMethod("/:rut/session")
+    public async createSession(
+        request: Request<{ rut: string }, unknown, { password?: string }>,
+        response: Response<{ token: string }>
+    ): Promise<void> {
+        const { rut } = request.params;
+        const { password } = request.body;
+
+        if (!password) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Request body must contain password.");
+            return;
+        }
+
+        const patient = await db
+            .selectFrom("patient")
+            .select(["password", "salt"])
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!patient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        const encryptedPassword = createHash("sha512").update(password + patient.salt).digest("base64url");
+
+        if (encryptedPassword !== patient.password) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Incorrect password.");
+            return;
+        }
+
+        const token = await generateToken(rut, TokenType.PATIENT);
+
+        this.sendStatus(response, HTTPStatus.CREATED, { token });
+    }
+
+    @DeleteMethod({ path: "/:rut/session", requiresAuthorization: true })
+    public async expireSession(request: Request, response: Response): Promise<void> {
+        const token = request.headers.authorization!.slice(7);
+
+        await revokeToken(token);
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 }
 
