@@ -7,7 +7,7 @@ export class PatientsEndpoint extends Endpoint {
         super("/patients");
     }
 
-    @GetMethod("/:rut")
+    @GetMethod({ path: "/:rut", requiresAuthorization: true })
     public async getPatient(request: Request<{ rut: string }>, response: Response<PatientResponse>): Promise<void> {
         const { rut } = request.params;
 
