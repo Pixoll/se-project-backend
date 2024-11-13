@@ -553,7 +553,7 @@ function makeMethodDecorator<T extends EndpointMethod>(
             }
         }
 
-        if (options.requiresAuthorization) {
+        if (typeof options.requiresAuthorization !== "undefined") {
             const oldValue = descriptor.value;
 
             descriptor.value = (async function (this: Endpoint, request: Request, response: Response): Promise<void> {
@@ -567,7 +567,7 @@ function makeMethodDecorator<T extends EndpointMethod>(
 
                 if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)
                     || !doesTokenExist(token)
-                    || (options.requiresAuthorization && getTokenType(token) !== options.requiresAuthorization)
+                    || (options.requiresAuthorization !== true && getTokenType(token) !== options.requiresAuthorization)
                 ) {
                     this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid token.");
                     return;
@@ -595,7 +595,7 @@ type EndpointMethod = (
 
 type MethodDecoratorOptions = {
     path?: string;
-    requiresAuthorization?: TokenType;
+    requiresAuthorization?: TokenType | true;
 };
 
 type TypedDecorator<T> = (target: unknown, propertyKey: string, descriptor: TypedPropertyDescriptor<T>) => void;
