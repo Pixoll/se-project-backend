@@ -68,15 +68,15 @@ export type AppointmentTable = {
      */
     id: Generated<BigIntString>;
     /**
-     * - SQL: `patient_id int unsigned not null`
-     * - Foreign key: `patient.id`
+     * - SQL: `patient_rut varchar(11) not null`
+     * - Foreign key: `patient.rut`
      */
-    patient_id: number;
+    patient_rut: string;
     /**
-     * - SQL: `medic_id int unsigned not null`
-     * - Foreign key: `medic.id`
+     * - SQL: `medic_rut varchar(11) not null`
+     * - Foreign key: `medic.rut`
      */
-    medic_id: number;
+    medic_rut: string;
     /**
      * - SQL: `date_time datetime not null`
      */
@@ -116,13 +116,13 @@ export type BloodTypeUpdate = Updateable<BloodTypeTable>;
 
 /**
  * - Table name: `clinic`
- * - Primary key: `(_id)`
+ * - Primary key: `(id)`
  */
 export type ClinicTable = {
     /**
-     * - SQL: `_id int primary key default 0 check (_id = 0)`
+     * - SQL: `id int primary key default 0 check (id = 0)`
      */
-    _id: Generated<number>;
+    id: Generated<number>;
     /**
      * - SQL: `name varchar(64) not null check (name != "")`
      */
@@ -155,14 +155,14 @@ export type ClinicUpdate = Updateable<ClinicTable>;
 
 /**
  * - Table name: `employee`
- * - Primary key: `(id)`
+ * - Primary key: `(rut)`
  */
 export type EmployeeTable = {
     /**
-     * - SQL: `id int unsigned primary key`
-     * - Foreign key: `person.id`
+     * - SQL: `rut varchar(11) primary key`
+     * - Foreign key: `person.rut`
      */
-    id: number;
+    rut: string;
     /**
      * - SQL: `type enum("admin_staff", "medic") not null`
      */
@@ -194,14 +194,14 @@ export type InsuranceTypeUpdate = Updateable<InsuranceTypeTable>;
 
 /**
  * - Table name: `medic`
- * - Primary key: `(id)`
+ * - Primary key: `(rut)`
  */
 export type MedicTable = {
     /**
-     * - SQL: `id int unsigned primary key`
-     * - Foreign key: `employee.id`
+     * - SQL: `rut varchar(11) primary key`
+     * - Foreign key: `employee.rut`
      */
-    id: number;
+    rut: string;
     /**
      * - SQL: `specialty_id int unsigned not null`
      * - Foreign key: `specialty.id`
@@ -228,10 +228,10 @@ export type MedicalRecordTable = {
      */
     id: Generated<number>;
     /**
-     * - SQL: `patient_id int unsigned not null`
-     * - Foreign key: `patient.id`
+     * - SQL: `patient_rut varchar(11) not null`
+     * - Foreign key: `patient.rut`
      */
-    patient_id: number;
+    patient_rut: string;
     /**
      * - SQL: `allergies_history varchar(1000)`
      */
@@ -256,14 +256,14 @@ export type MedicalRecordUpdate = Updateable<MedicalRecordTable>;
 
 /**
  * - Table name: `patient`
- * - Primary key: `(id)`
+ * - Primary key: `(rut)`
  */
 export type PatientTable = {
     /**
-     * - SQL: `id int unsigned primary key not null`
-     * - Foreign key: `person.id`
+     * - SQL: `rut varchar(11) primary key`
+     * - Foreign key: `person.rut`
      */
-    id: number;
+    rut: string;
     /**
      * - SQL: `weight int unsigned not null`
      */
@@ -294,20 +294,15 @@ export type PatientUpdate = Updateable<PatientTable>;
 
 /**
  * - Table name: `person`
- * - Primary key: `(id)`
+ * - Primary key: `(rut)`
  * - Indexes:
- *   - `(rut)`
  *   - `(email)`
  *   - `(phone)`
  *   - `(session_token)`
  */
 export type PersonTable = {
     /**
-     * - SQL: `id int unsigned primary key auto_increment`
-     */
-    id: Generated<number>;
-    /**
-     * - SQL: `rut varchar(11) unique not null`
+     * - SQL: `rut varchar(11) primary key`
      */
     rut: string;
     /**
