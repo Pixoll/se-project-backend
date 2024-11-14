@@ -40,7 +40,7 @@ export class PatientsEndpoint extends Endpoint {
             birthDate: async (value: unknown): Promise<ValidationResult> => {
                 const valid = !!value
                     && typeof value === "string"
-                    && /^\d{4}-(?:0[1-9]|1[0-2])-(?:[0-2][0-9]|3[0-1])$/.test(value);
+                    && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
                 return valid ? {
                     ok: true,
                 } : {
