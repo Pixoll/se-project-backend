@@ -115,16 +115,12 @@ export type AppointmentTable = {
      */
     patient_rut: string;
     /**
-     * - SQL: `medic_rut varchar(11) not null`
-     * - Foreign key: `medic.rut`
+     * - SQL: `time_slot_id int unsigned not null`
+     * - Foreign key: `time_slot.id`
      */
-    medic_rut: string;
+    time_slot_id: number;
     /**
-     * - SQL: `date_time datetime not null`
-     */
-    date_time: string;
-    /**
-     * - SQL: `description varchar(100) not null check (description != "")`
+     * - SQL: `description varchar(1000) not null check (description != "")`
      */
     description: string;
     /**
@@ -388,11 +384,11 @@ export type PatientTable = {
      */
     gender: string;
     /**
-     * - SQL: `weight int unsigned not null`
+     * - SQL: `weight float not null check (weight > 0)`
      */
     weight: number;
     /**
-     * - SQL: `height int unsigned not null`
+     * - SQL: `height float not null check (height > 0)`
      */
     height: number;
     /**
@@ -475,11 +471,15 @@ export type TimeSlotTable = {
      */
     schedule_id: number;
     /**
-     * - SQL: `start datetime not null`
+     * - SQL: `day enum("mo", "tu", "we", "th", "fi", "sa", "su") not null`
+     */
+    day: "mo" | "tu" | "we" | "th" | "fi" | "sa" | "su";
+    /**
+     * - SQL: `start time not null`
      */
     start: string;
     /**
-     * - SQL: `end datetime not null`
+     * - SQL: `end time not null`
      */
     end: string;
 };
