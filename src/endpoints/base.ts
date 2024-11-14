@@ -567,7 +567,11 @@ function makeMethodDecorator<T extends EndpointMethod>(
 
                 if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)
                     || !doesTokenExist(token)
-                    || (options.requiresAuthorization !== true && getTokenType(token) !== options.requiresAuthorization)
+                    || (options.requiresAuthorization !== true && (
+                        Array.isArray(options.requiresAuthorization)
+                            ? !options.requiresAuthorization.includes(getTokenType(token)!)
+                            : getTokenType(token) !== options.requiresAuthorization
+                    ))
                 ) {
                     this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid token.");
                     return;
@@ -595,7 +599,7 @@ type EndpointMethod = (
 
 type MethodDecoratorOptions = {
     path?: string;
-    requiresAuthorization?: TokenType | true;
+    requiresAuthorization?: TokenType | TokenType[] | true;
 };
 
 type TypedDecorator<T> = (target: unknown, propertyKey: string, descriptor: TypedPropertyDescriptor<T>) => void;
