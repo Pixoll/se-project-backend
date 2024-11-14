@@ -1,6 +1,7 @@
 import cors from "cors";
 import { config as dotenvConfig } from "dotenv";
 import express, { Router } from "express";
+import qs from "qs";
 import { connectDB } from "./db";
 import { baseMiddleware, Endpoint, Method, methodDecoratorNames, v1Endpoints } from "./endpoints";
 import logger from "./logger";
@@ -14,6 +15,14 @@ const router = Router();
 const PORT = +(process.env.PORT ?? 0) || 3000;
 
 const v1Path = "/api/v1";
+
+app.set("query parser", (str: string) => {
+    return qs.parse(str, {
+        comma: true,
+        allowEmptyArrays: true,
+        duplicates: "combine",
+    });
+});
 
 app.use(cors());
 app.use(express.json());
