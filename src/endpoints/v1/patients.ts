@@ -194,7 +194,7 @@ export class PatientsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.CREATED, { token });
     }
 
-    @DeleteMethod({ path: "/:rut/session", requiresAuthorization: true })
+    @DeleteMethod({ path: "/:rut/session", requiresAuthorization: TokenType.PATIENT })
     public async expireSession(request: Request, response: Response): Promise<void> {
         const token = request.headers.authorization!.slice(7);
 
