@@ -139,7 +139,25 @@ export class PatientsEndpoint extends Endpoint {
         };
     }
 
-    @GetMethod({ path: "/:rut", requiresAuthorization: true })
+    @GetMethod({ path: "/me", requiresAuthorization: TokenType.PATIENT })
+    public async getCurrentPatient(request: Request, response: Response<PatientResponse>): Promise<void> {
+        const token = request.headers.authorization!.slice(7);
+
+        const patient = await db
+            .selectFrom("patient")
+            .select("rut")
+            .where("session_token", "=", token)
+            .executeTakeFirst();
+
+        if (!patient) {
+            throw new Error(`No patient with token ${token} found`);
+        }
+
+        request.params.rut = patient.rut;
+        await this.getPatient(request as Request<{ rut: string }>, response);
+    }
+
+    @GetMethod({ path: "/:rut", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
     public async getPatient(request: Request<{ rut: string }>, response: Response<PatientResponse>): Promise<void> {
         const { rut } = request.params;
 

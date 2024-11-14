@@ -241,10 +241,18 @@ components:
           type: string
           maxLength: 1000
   securitySchemes:
-    SessionToken:
+    PatientSessionToken:
       type: http
       scheme: bearer
-      description: The patient, medic or admin's session token.
+      description: The patient's session token.
+    MedicSessionToken:
+      type: http
+      scheme: bearer
+      description: The medic's session token.
+    AdminSessionToken:
+      type: http
+      scheme: bearer
+      description: The admin's session token.
 paths:
   /clinic:
     get:
@@ -271,12 +279,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /patients/me:
+    get:
+      tags: [ Patients ]
+      summary: Get the current patient's information.
+      security:
+        - PatientSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the patient's information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
   /patients/{rut}:
     get:
       tags: [ Patients ]
       summary: Get a patient's information.
       security:
-        - SessionToken: [ ]
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
       responses:
         200:
           description: Successfully retrieved the patient's information.
@@ -375,7 +397,7 @@ paths:
       tags: [ Patients ]
       summary: Revoke the patient's session token.
       security:
-        - SessionToken: [ ]
+        - PatientSessionToken: [ ]
       responses:
         204:
           description: Token successfully revoked.
