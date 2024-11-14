@@ -471,9 +471,9 @@ export type TimeSlotTable = {
      */
     schedule_id: number;
     /**
-     * - SQL: `day enum("mo", "tu", "we", "th", "fi", "sa", "su") not null`
+     * - SQL: `day enum("mo", "tu", "we", "th", "fr", "sa", "su") not null`
      */
-    day: "mo" | "tu" | "we" | "th" | "fi" | "sa" | "su";
+    day: "mo" | "tu" | "we" | "th" | "fr" | "sa" | "su";
     /**
      * - SQL: `start time not null`
      */
