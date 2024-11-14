@@ -334,12 +334,9 @@ export class PatientsEndpoint extends Endpoint {
     }
 }
 
-type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "birth_date" | "rut" | "salt" | "session_token">> & {
-    birthDate: string;
-};
+type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "rut" | "salt" | "session_token">>;
 
 type PatientResponse = SnakeToCamelRecord<Omit<Patient,
-    | "birth_date"
     | "blood_type_id"
     | "insurance_type_id"
     | "password"
@@ -351,7 +348,6 @@ type PatientResponse = SnakeToCamelRecord<Omit<Patient,
 >> & {
     secondName?: string;
     secondLastName?: string;
-    birthDate: string;
     bloodType: string;
     insuranceType: string;
     medicalRecord: Partial<NonNullableRecord<SnakeToCamelRecord<Omit<MedicalRecord, "patient_rut">>>>;
