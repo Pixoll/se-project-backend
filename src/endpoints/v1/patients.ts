@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { Request, Response } from "express";
 import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, MedicalRecord, NewPatient, Patient } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
+import { NonNullableRecord, ObjectEntries, SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PostMethod } from "../base";
 
 export class PatientsEndpoint extends Endpoint {
@@ -393,17 +394,3 @@ type PatientResponse = SnakeToCamelRecord<Omit<Patient,
     insuranceType: string;
     medicalRecord: Partial<NonNullableRecord<SnakeToCamelRecord<Omit<MedicalRecord, "patient_rut">>>>;
 };
-
-type NonNullableRecord<T> = {
-    [K in keyof T]: NonNullable<T[K]>;
-};
-
-type SnakeToCamelRecord<T> = {
-    [K in keyof T as K extends string ? SnakeToCamelCase<K> : K]: T[K];
-};
-
-type SnakeToCamelCase<S extends string> = S extends `${infer A}_${infer B}`
-    ? `${A}${Capitalize<SnakeToCamelCase<B>>}`
-    : S;
-
-type ObjectEntries<T> = Array<[keyof T, T[keyof T]]>;
