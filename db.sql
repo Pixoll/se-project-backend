@@ -233,13 +233,24 @@ begin
     declare conflict boolean;
     declare msg varchar(100);
 
+    if new.date < current_date() then
+        signal sqlstate "45000" set message_text = "Appointment cannot be set in the past.";
+    end if;
+
     set conflict = (select t.day != elt(weekday(new.date) + 1, "mo", "tu", "we", "th", "fr", "sa", "su")
                     from time_slot as t
                     where t.id = new.time_slot_id);
 
     if conflict then
-        set msg = concat("There's already an appointment for ", new.time_slot_id, ".");
-        signal sqlstate "45000" set message_text = msg;
+        signal sqlstate "45000" set message_text = "Appointment day and timeslot day do not match.";
+    end if;
+
+    set conflict = (select new.date = current_date() and current_time() > t.start
+                    from time_slot as t
+                    where t.id = new.time_slot_id);
+
+    if conflict then
+        signal sqlstate "45000" set message_text = "Timeslot has already started.";
     end if;
 end; $$
 delimiter ;
