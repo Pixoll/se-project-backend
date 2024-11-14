@@ -102,11 +102,22 @@ export type BigIntString = `${number}`;
 
 /**
  * - Table name: `appointment`
- * - Primary key: `(id)`
+ * - Primary key: `(time_slot_id, date)`
+ * - Indexes:
+ *   - `(id)`
  */
 export type AppointmentTable = {
     /**
-     * - SQL: `id bigint unsigned primary key auto_increment`
+     * - SQL: `time_slot_id int unsigned not null`
+     * - Foreign key: `time_slot.id`
+     */
+    time_slot_id: number;
+    /**
+     * - SQL: `date date not null`
+     */
+    date: string;
+    /**
+     * - SQL: `id bigint unsigned unique auto_increment not null`
      */
     id: Generated<BigIntString>;
     /**
@@ -114,11 +125,6 @@ export type AppointmentTable = {
      * - Foreign key: `patient.rut`
      */
     patient_rut: string;
-    /**
-     * - SQL: `time_slot_id int unsigned not null`
-     * - Foreign key: `time_slot.id`
-     */
-    time_slot_id: number;
     /**
      * - SQL: `description varchar(1000) not null check (description != "")`
      */

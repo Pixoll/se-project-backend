@@ -215,11 +215,13 @@ end; $$
 delimiter ;
 
 create table appointment (
-    id bigint unsigned primary key auto_increment,
-    patient_rut varchar(11) not null,
     time_slot_id int unsigned not null,
+    date date not null,
+    id bigint unsigned unique auto_increment not null,
+    patient_rut varchar(11) not null,
     description varchar(1000) not null check (description != ""),
     confirmed boolean not null default false,
+    primary key (time_slot_id, date),
     foreign key (patient_rut) references patient(rut),
     foreign key (time_slot_id) references time_slot(id)
 );
@@ -231,7 +233,9 @@ begin
     declare conflict boolean;
     declare msg varchar(100);
 
-    set conflict = (select true from appointment as a where a.time_slot_id = new.time_slot_id);
+    set conflict = (select t.day != elt(weekday(new.date) + 1, "mo", "tu", "we", "th", "fr", "sa", "su")
+                    from time_slot as t
+                    where t.id = new.time_slot_id);
 
     if conflict then
         set msg = concat("There's already an appointment for ", new.time_slot_id, ".");
