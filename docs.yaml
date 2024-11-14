@@ -5,7 +5,10 @@ info:
 servers:
   - url: /api/v1
 tags:
+  - name: Clinic
+  - name: Patients
   - name: Ping
+  - name: Schedule
 components:
   responses:
     UnauthorizedError:
@@ -15,6 +18,100 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    Rut:
+      type: string
+      pattern: ^\d{7,9}-[\dk]$
+    Email:
+      type: string
+      pattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
+    Phone:
+      type: number
+      minimum: 100000000
+      maximum: 999999999
+    Date:
+      type: string
+      pattern: ^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$
+    Time:
+      type: string
+      pattern: ^[0-2][0-9]:[0-5][0-9]$
+    Clinic:
+      type: object
+      required:
+        - name
+        - email
+        - phone
+        - address
+        - openingTime
+        - closingTime
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: number
+        address:
+          type: string
+        openingTime:
+          $ref: "#/components/schemas/Time"
+        closingTime:
+          $ref: "#/components/schemas/Time"
+    PartialClinic:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: number
+        address:
+          type: string
+        openingTime:
+          type: string
+        closingTime:
+          type: string
+    ClinicSchedule:
+      type: object
+      required:
+        - rut
+        - fullName
+        - specialty
+        - slots
+      properties:
+        rut:
+          $ref: "#/components/schemas/Rut"
+        fullName:
+          type: string
+        specialty:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClinicScheduleTimeSlot"
+    ClinicScheduleTimeSlot:
+      type: object
+      required:
+        - id
+        - day
+        - start
+        - end
+        - appointmentDates
+      properties:
+        id:
+          type: number
+          minimum: 1
+        day:
+          type: string
+          enum: [ mo, tu, we, th, fr, sa, su ]
+        start:
+          $ref: "#/components/schemas/Time"
+        end:
+          $ref: "#/components/schemas/Time"
+        appointmentDates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Date"
     Error:
       type: object
       required:
@@ -27,12 +124,270 @@ components:
         message:
           type: string
           description: Message explaining the cause.
+    Patient:
+      type: object
+      required:
+        - firstName
+        - firstLastName
+        - email
+        - phone
+        - birthDate
+        - gender
+        - weight
+        - height
+        - rhesusFactor
+        - bloodType
+        - insuranceType
+        - medicalRecord
+      properties:
+        firstName:
+          type: string
+        secondName:
+          type: string
+        firstLastName:
+          type: string
+        secondLastName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+        weight:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        height:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        rhesusFactor:
+          type: string
+          enum: [ "+", "-" ]
+        bloodType:
+          type: string
+        insuranceType:
+          type: string
+        medicalRecord:
+          $ref: "#/components/schemas/MedicalRecord"
+    NewPatient:
+      type: object
+      required:
+        - firstName
+        - firstLastName
+        - email
+        - phone
+        - birthDate
+        - gender
+        - weight
+        - height
+        - rhesusFactor
+        - bloodTypeId
+        - insuranceTypeId
+        - password
+      properties:
+        firstName:
+          type: string
+        secondName:
+          type: string
+        firstLastName:
+          type: string
+        secondLastName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+        weight:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        height:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        rhesusFactor:
+          type: string
+          enum: [ "+", "-" ]
+        bloodTypeId:
+          type: number
+          minimum: 1
+        insuranceTypeId:
+          type: number
+          minimum: 1
+        password:
+          type: string
+          minLength: 8
+    MedicalRecord:
+      type: object
+      properties:
+        allergiesHistory:
+          type: string
+          maxLength: 1000
+        morbidityHistory:
+          type: string
+          maxLength: 1000
+        surgicalHistory:
+          type: string
+          maxLength: 1000
+        medications:
+          type: string
+          maxLength: 1000
   securitySchemes:
     SessionToken:
       type: http
       scheme: bearer
-      description: The admin's session token.
+      description: The patient, medic or admin's session token.
 paths:
+  /clinic:
+    get:
+      tags: [ Clinic ]
+      summary: Get the clinic's information.
+      responses:
+        200:
+          description: Successfully retrieved the clinic's information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clinic"
+    patch:
+      tags: [ Clinic ]
+      summary: Update the clinic's information.
+      responses:
+        204:
+          description: Successfully updated the clinic's information.
+        304:
+          description: Nothing has changed.
+        400:
+          description: Request body is empty or invalid data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /patients/{rut}:
+    get:
+      tags: [ Patients ]
+      summary: Get a patient's information.
+      security:
+        - SessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the patient's information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        400:
+          description: Malformed rut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Patient does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [ Patients ]
+      summary: Register a new patient.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewPatient"
+      responses:
+        201:
+          description: Successfully registered patient.
+        400:
+          description: Malformed rut or patient data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Patient with that rut, email or phone already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The patient's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /patients/{rut}/session:
+    post:
+      tags: [ Patients ]
+      summary: Generate a new session token for the selected patient.
+      requestBody:
+        description: The patient's password.
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+      responses:
+        201:
+          description: Session token successfully generated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - token
+                properties:
+                  token:
+                    type: string
+        400:
+          description: Password missing in request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          description: Incorrect password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Patient does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [ Patients ]
+      summary: Revoke the patient's session token.
+      security:
+        - SessionToken: [ ]
+      responses:
+        204:
+          description: Token successfully revoked.
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+    parameters:
+      - name: rut
+        in: path
+        description: The patient's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
   /ping:
     get:
       tags: [ Ping ]
@@ -40,3 +395,36 @@ paths:
       responses:
         200:
           description: API is available.
+  /schedule:
+    get:
+      tags: [ Schedule ]
+      summary: Get the clinic's current appointments schedule.
+      responses:
+        200:
+          description: Successfully retrieved the schedule.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClinicSchedule"
+        400:
+          description: Specialties query contains invalid id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      parameters:
+        - name: medics
+          in: query
+          description: The ruts of the selected medics.
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Rut"
+        - name: specialties
+          in: query
+          description: The ids of the selected specialties.
+          schema:
+            type: array
+            items:
+              type: number
+              minimum: 1
