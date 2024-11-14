@@ -1,12 +1,84 @@
 import { Request, Response } from "express";
-import { Clinic, db } from "../../db";
+import { Clinic, db, isValidEmail, isValidPhone } from "../../db";
 import { TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { Endpoint, GetMethod, HTTPStatus, PatchMethod } from "../base";
+import { validate, ValidationResult, Validator } from "../validator";
 
 export class ClinicEndpoint extends Endpoint {
+    private readonly clinicValidators: Record<keyof ClinicObject, Validator>;
+
     public constructor() {
         super("/clinic");
+
+        this.clinicValidators = {
+            name: "skip",
+            email: async (value: unknown): Promise<ValidationResult> => {
+                if (!value) {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = typeof value === "string" && isValidEmail(value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: "Invalid email.",
+                };
+            },
+            phone: async (value: unknown): Promise<ValidationResult> => {
+                if (!value) {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = typeof value === "number" && isValidPhone(value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: "Invalid phone.",
+                };
+            },
+            address: "skip",
+            openingTime: async (value: unknown): Promise<ValidationResult> => {
+                if (!value) {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: "Invalid openingTime.",
+                };
+            },
+            closingTime: async (value: unknown): Promise<ValidationResult> => {
+                if (!value) {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: "Invalid closingTime.",
+                };
+            },
+        };
     }
 
     @GetMethod()
@@ -43,6 +115,13 @@ export class ClinicEndpoint extends Endpoint {
 
         if (!name && !email && !phone && !address && !openingTime && !closingTime) {
             this.sendError(response, HTTPStatus.BAD_REQUEST, "Request body is empty.");
+            return;
+        }
+
+        const validationResult = await validate(request.body, this.clinicValidators);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
             return;
         }
 
