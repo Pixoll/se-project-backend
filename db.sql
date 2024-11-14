@@ -349,4 +349,8 @@ insert into appointment values
     (weekday(current_date()) * 2 + 1, current_date(), null, "1000000-9", "Lorem ipsum 1", true),
     (14 + weekday(current_date() + 1) * 2 + 1, current_date() + 1, null, "1000000-9", "Lorem ipsum 2", false),
     ((weekday(current_date() + 2) + 1) * 2, current_date() + 2, null, "2000000-7", "Lorem ipsum 3", true),
-    (14 + (weekday(current_date() + 3) + 1) * 2, current_date() + 3, null, "2000000-7", "Lorem ipsum 4", false);
+    (14 + (weekday(current_date() + 3) + 1) * 2, current_date() + 3, null, "2000000-7", "Lorem ipsum 4", false),
+    (weekday(current_date() + 7) * 2 + 1, current_date() + 7, null, "1000000-9", "Lorem ipsum 5", false),
+    (14 + weekday(current_date() + 8) * 2 + 1, current_date() + 8, null, "1000000-9", "Lorem ipsum 6", false),
+    ((weekday(current_date() + 9) + 1) * 2, current_date() + 9, null, "2000000-7", "Lorem ipsum 7", false),
+    (14 + (weekday(current_date() + 10) + 1) * 2, current_date() + 10, null, "2000000-7", "Lorem ipsum 8", false);
