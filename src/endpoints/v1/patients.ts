@@ -3,8 +3,8 @@ import { Request, Response } from "express";
 import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, MedicalRecord, NewPatient, Patient } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { NonNullableRecord, SnakeToCamelRecord } from "../../types";
-import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PostMethod } from "../base";
-import { validate, ValidatorResult, Validator } from "../validator";
+import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
+import { validate, Validator, ValidatorResult } from "../validator";
 
 export class PatientsEndpoint extends Endpoint {
     private static readonly NEW_PATIENT_VALIDATORS = {
@@ -244,6 +244,66 @@ export class PatientsEndpoint extends Endpoint {
         },
     } as const satisfies Record<keyof PatientBody, Validator>;
 
+    private static readonly PATIENT_UPDATE_VALIDATORS = {
+        firstName: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.firstName.validator(value, key);
+        },
+        secondName: PatientsEndpoint.NEW_PATIENT_VALIDATORS.secondName,
+        firstLastName: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.firstLastName.validator(value, key);
+        },
+        secondLastName: PatientsEndpoint.NEW_PATIENT_VALIDATORS.secondLastName,
+        email: async (value, key): Promise<ValidatorResult> => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.email.validator(value, key);
+        },
+        phone: async (value, key): Promise<ValidatorResult> => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.phone.validator(value, key);
+        },
+        birthDate: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.birthDate.validator(value, key);
+        },
+        gender: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.gender.validator(value, key);
+        },
+        weight: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.weight.validator(value, key);
+        },
+        height: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.height.validator(value, key);
+        },
+        rhesusFactor: (value, key): ValidatorResult => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.rhesusFactor.validator(value, key);
+        },
+        bloodTypeId: async (value, key): Promise<ValidatorResult> => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.bloodTypeId.validator(value, key);
+        },
+        insuranceTypeId: async (value, key): Promise<ValidatorResult> => {
+            return typeof value === "undefined" ? {
+                ok: true,
+            } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.insuranceTypeId.validator(value, key);
+        },
+    } as const satisfies Record<keyof PatientUpdateBody, Validator>;
+
     public constructor() {
         super("/patients");
     }
@@ -403,6 +463,92 @@ export class PatientsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.CREATED);
     }
 
+    @PatchMethod({ path: "/:rut", requiresAuthorization: true })
+    public async updatePatient(
+        request: Request<{ rut: string }, unknown, PatientUpdateBody>,
+        response: Response
+    ): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.PATIENT && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const registeredPatient = await db
+            .selectFrom("patient")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!registeredPatient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        const validationResult = await validate(request.body, PatientsEndpoint.PATIENT_UPDATE_VALIDATORS);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
+            return;
+        }
+
+        if (Object.keys(validationResult.value).length === 0) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
+        const {
+            firstName,
+            secondName,
+            firstLastName,
+            secondLastName,
+            email,
+            phone,
+            birthDate,
+            gender,
+            weight,
+            height,
+            rhesusFactor,
+            bloodTypeId,
+            insuranceTypeId,
+        } = validationResult.value;
+
+        const updateResult = await db
+            .updateTable("patient")
+            .set({
+                first_name: firstName,
+                second_name: secondName || undefined,
+                first_last_name: firstLastName,
+                second_last_name: secondLastName || undefined,
+                email,
+                phone,
+                birth_date: birthDate,
+                gender,
+                weight,
+                height,
+                rhesus_factor: rhesusFactor,
+                blood_type_id: bloodTypeId,
+                insurance_type_id: insuranceTypeId,
+            })
+            .where("rut", "=", rut)
+            .execute();
+
+        if (updateResult[0].numChangedRows === 0n) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
+    }
+
     @PostMethod("/:rut/session")
     public async createSession(
         request: Request<{ rut: string }, unknown, { password?: string }>,
@@ -450,6 +596,8 @@ export class PatientsEndpoint extends Endpoint {
 }
 
 type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "rut" | "salt" | "session_token">>;
+
+type PatientUpdateBody = Partial<Omit<PatientBody, "password">>;
 
 type PatientResponse = SnakeToCamelRecord<Omit<Patient,
     | "blood_type_id"

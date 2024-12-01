@@ -225,6 +225,42 @@ components:
         password:
           type: string
           minLength: 8
+    PatientUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        secondName:
+          type: string
+        firstLastName:
+          type: string
+        secondLastName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+        weight:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        height:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        rhesusFactor:
+          type: string
+          enum: [ "+", "-" ]
+        bloodTypeId:
+          type: number
+          minimum: 1
+        insuranceTypeId:
+          type: number
+          minimum: 1
     MedicalRecord:
       type: object
       properties:
@@ -337,6 +373,43 @@ paths:
                 $ref: "#/components/schemas/Error"
         409:
           description: Patient with that rut, email or phone already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [ Patients ]
+      summary: Update a patient's data.
+      security:
+        - PatientSessionToken: [ ]
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpdate"
+      responses:
+        204:
+          description: Successfully updated patient.
+        304:
+          description: Patient was not modified.
+        400:
+          description: Malformed rut or patient data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Patient does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Patient with that email or phone already exists.
           content:
             application/json:
               schema:
