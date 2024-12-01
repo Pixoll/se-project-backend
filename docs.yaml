@@ -18,22 +18,6 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
-    Rut:
-      type: string
-      pattern: ^\d{7,9}-[\dk]$
-    Email:
-      type: string
-      pattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
-    Phone:
-      type: number
-      minimum: 100000000
-      maximum: 999999999
-    Date:
-      type: string
-      pattern: ^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$
-    Time:
-      type: string
-      pattern: ^[0-2][0-9]:[0-5][0-9]$
     Clinic:
       type: object
       required:
@@ -56,21 +40,6 @@ components:
           $ref: "#/components/schemas/Time"
         closingTime:
           $ref: "#/components/schemas/Time"
-    PartialClinic:
-      type: object
-      properties:
-        name:
-          type: string
-        email:
-          type: string
-        phone:
-          type: number
-        address:
-          type: string
-        openingTime:
-          type: string
-        closingTime:
-          type: string
     ClinicSchedule:
       type: object
       required:
@@ -112,6 +81,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Date"
+    Date:
+      type: string
+      pattern: ^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$
+    Email:
+      type: string
+      pattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
     Error:
       type: object
       required:
@@ -124,55 +99,21 @@ components:
         message:
           type: string
           description: Message explaining the cause.
-    Patient:
+    MedicalRecord:
       type: object
-      required:
-        - firstName
-        - firstLastName
-        - email
-        - phone
-        - birthDate
-        - gender
-        - weight
-        - height
-        - rhesusFactor
-        - bloodType
-        - insuranceType
-        - medicalRecord
       properties:
-        firstName:
+        allergiesHistory:
           type: string
-        secondName:
+          maxLength: 1000
+        morbidityHistory:
           type: string
-        firstLastName:
+          maxLength: 1000
+        surgicalHistory:
           type: string
-        secondLastName:
+          maxLength: 1000
+        medications:
           type: string
-        email:
-          $ref: "#/components/schemas/Email"
-        phone:
-          $ref: "#/components/schemas/Phone"
-        birthDate:
-          $ref: "#/components/schemas/Date"
-        gender:
-          type: string
-        weight:
-          type: number
-          minimum: 0
-          exclusiveMinimum: true
-        height:
-          type: number
-          minimum: 0
-          exclusiveMinimum: true
-        rhesusFactor:
-          type: string
-          enum: [ "+", "-" ]
-        bloodType:
-          type: string
-        insuranceType:
-          type: string
-        medicalRecord:
-          $ref: "#/components/schemas/MedicalRecord"
+          maxLength: 1000
     NewPatient:
       type: object
       required:
@@ -225,6 +166,70 @@ components:
         password:
           type: string
           minLength: 8
+    PartialClinic:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: number
+        address:
+          type: string
+        openingTime:
+          type: string
+        closingTime:
+          type: string
+    Patient:
+      type: object
+      required:
+        - firstName
+        - firstLastName
+        - email
+        - phone
+        - birthDate
+        - gender
+        - weight
+        - height
+        - rhesusFactor
+        - bloodType
+        - insuranceType
+        - medicalRecord
+      properties:
+        firstName:
+          type: string
+        secondName:
+          type: string
+        firstLastName:
+          type: string
+        secondLastName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+        weight:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        height:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        rhesusFactor:
+          type: string
+          enum: [ "+", "-" ]
+        bloodType:
+          type: string
+        insuranceType:
+          type: string
+        medicalRecord:
+          $ref: "#/components/schemas/MedicalRecord"
     PatientUpdate:
       type: object
       properties:
@@ -261,21 +266,16 @@ components:
         insuranceTypeId:
           type: number
           minimum: 1
-    MedicalRecord:
-      type: object
-      properties:
-        allergiesHistory:
-          type: string
-          maxLength: 1000
-        morbidityHistory:
-          type: string
-          maxLength: 1000
-        surgicalHistory:
-          type: string
-          maxLength: 1000
-        medications:
-          type: string
-          maxLength: 1000
+    Phone:
+      type: number
+      minimum: 100000000
+      maximum: 999999999
+    Rut:
+      type: string
+      pattern: ^\d{7,9}-[\dk]$
+    Time:
+      type: string
+      pattern: ^[0-2][0-9]:[0-5][0-9]$
   securitySchemes:
     PatientSessionToken:
       type: http
