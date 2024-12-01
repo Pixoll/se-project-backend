@@ -28,7 +28,7 @@ export abstract class Endpoint {
         });
     }
 
-    protected getToken(request: Request): Token | null {
+    protected getToken<A, B, C, D>(request: Request<A, B, C, D>): Token | null {
         const bearerToken = request.headers.authorization ?? "";
 
         if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)) {
