@@ -247,6 +247,13 @@ components:
           type: string
         closingTime:
           type: string
+    Password:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
     Patient:
       type: object
       required:
@@ -398,6 +405,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Appointment"
+    SessionToken:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
     Specialty:
       type: object
       properties:
@@ -686,6 +700,58 @@ paths:
         schema:
           type: number
           minimum: 1
+  /medics/{rut}/session:
+    post:
+      tags: [ Medics ]
+      summary: Generate a new session token for the selected medic.
+      requestBody:
+        description: The medic's password.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Password"
+      responses:
+        201:
+          description: Session token successfully generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionToken"
+        400:
+          description: Password missing in request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          description: Incorrect password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [ Medics ]
+      summary: Revoke the medic's session token.
+      security:
+        - MedicSessionToken: [ ]
+      responses:
+        204:
+          description: Token successfully revoked.
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
   /patients/{rut}:
     get:
       tags: [ Patients ]
@@ -791,24 +857,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - password
-              properties:
-                password:
-                  type: string
+              $ref: "#/components/schemas/Password"
       responses:
         201:
           description: Session token successfully generated.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - token
-                properties:
-                  token:
-                    type: string
+                $ref: "#/components/schemas/SessionToken"
         400:
           description: Password missing in request body.
           content:

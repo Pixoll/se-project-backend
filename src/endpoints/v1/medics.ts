@@ -1,7 +1,8 @@
+import { createHash } from "crypto";
 import { Request, Response } from "express";
 import { sql } from "kysely";
 import { Appointment as DBAppointment, db, Employee, isValidEmail, isValidPhone, isValidRut, TimeSlot } from "../../db";
-import { TokenType } from "../../tokens";
+import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
 import { validate, Validator, ValidatorResult } from "../validator";
@@ -722,6 +723,52 @@ export class MedicsEndpoint extends Endpoint {
             .deleteFrom("time_slot")
             .where("id", "=", id)
             .execute();
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
+    }
+
+    @PostMethod("/:rut/session")
+    public async createSession(
+        request: Request<{ rut: string }, unknown, { password?: string }>,
+        response: Response<{ token: string }>
+    ): Promise<void> {
+        const { rut } = request.params;
+        const { password } = request.body;
+
+        if (!password) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Request body must contain password.");
+            return;
+        }
+
+        const medic = await db
+            .selectFrom("employee")
+            .select(["password", "salt"])
+            .where("rut", "=", rut)
+            .where("type", "=", "medic")
+            .executeTakeFirst();
+
+        if (!medic) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Medic ${rut} does not exist.`);
+            return;
+        }
+
+        const encryptedPassword = createHash("sha512").update(password + medic.salt).digest("base64url");
+
+        if (encryptedPassword !== medic.password) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Incorrect password.");
+            return;
+        }
+
+        const token = await generateToken(rut, TokenType.MEDIC);
+
+        this.sendStatus(response, HTTPStatus.CREATED, { token });
+    }
+
+    @DeleteMethod({ path: "/:rut/session", requiresAuthorization: TokenType.MEDIC })
+    public async expireSession(request: Request, response: Response): Promise<void> {
+        const { token } = this.getToken(request)!;
+
+        await revokeToken(token);
 
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
