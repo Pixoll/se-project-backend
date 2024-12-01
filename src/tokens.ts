@@ -37,7 +37,7 @@ export async function loadTokens(): Promise<void> {
         .select([
             "rut",
             "session_token as token",
-            sql<TokenType>`(
+            sql<string>`(
                 case
                     when type = "medic" then ${TokenType.MEDIC}
                     else ${TokenType.ADMIN}
@@ -48,7 +48,7 @@ export async function loadTokens(): Promise<void> {
 
     for (const { rut, token, type } of employeeTokens) {
         if (token) {
-            tokens.set(token, { token, rut, type });
+            tokens.set(token, { token, rut, type: +type });
         }
     }
 }
