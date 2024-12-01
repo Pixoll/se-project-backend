@@ -384,9 +384,9 @@ export class PatientsEndpoint extends Endpoint {
             .values({
                 rut,
                 first_name: firstName,
-                second_name: secondName,
+                second_name: secondName || undefined,
                 first_last_name: firstLastName,
-                second_last_name: secondLastName,
+                second_last_name: secondLastName || undefined,
                 email,
                 phone,
                 birth_date: birthDate,
