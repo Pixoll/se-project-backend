@@ -4,40 +4,70 @@ import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, MedicalRecord
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { NonNullableRecord, SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PostMethod } from "../base";
-import { validate, ValidationResult, Validator } from "../validator";
+import { validate, ValidatorResult, Validator } from "../validator";
 
 export class PatientsEndpoint extends Endpoint {
-    private readonly patientValidators: Record<keyof PatientBody, Validator>;
+    private readonly newPatientValidators: Record<keyof PatientBody, Validator>;
 
     public constructor() {
         super("/patients");
 
-        this.patientValidators = {
+        this.newPatientValidators = {
             firstName: "required",
             secondName: "skip",
             firstLastName: "required",
             secondLastName: "skip",
-            email: async (value: unknown): Promise<ValidationResult> => {
+            email: async (value: unknown): Promise<ValidatorResult> => {
                 const valid = !!value && typeof value === "string" && isValidEmail(value);
-                return valid ? {
+
+                if (!valid) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: "Invalid email.",
+                    };
+                }
+
+                const patient = await db
+                    .selectFrom("patient")
+                    .select("rut")
+                    .where("email", "=", value)
+                    .executeTakeFirst();
+
+                return !patient ? {
                     ok: true,
                 } : {
                     ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid email.",
+                    status: HTTPStatus.CONFLICT,
+                    message: `A patient with email ${value} already exists.`,
                 };
             },
-            phone: async (value: unknown): Promise<ValidationResult> => {
+            phone: async (value: unknown): Promise<ValidatorResult> => {
                 const valid = !!value && typeof value === "number" && isValidPhone(value);
-                return valid ? {
+
+                if (!valid) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: "Invalid phone.",
+                    };
+                }
+
+                const patient = await db
+                    .selectFrom("patient")
+                    .select("rut")
+                    .where("phone", "=", value)
+                    .executeTakeFirst();
+
+                return !patient ? {
                     ok: true,
                 } : {
                     ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid phone.",
+                    status: HTTPStatus.CONFLICT,
+                    message: `A patient with phone ${value} already exists.`,
                 };
             },
-            birthDate: async (value: unknown): Promise<ValidationResult> => {
+            birthDate: (value: unknown): ValidatorResult => {
                 const valid = !!value
                     && typeof value === "string"
                     && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
@@ -50,7 +80,7 @@ export class PatientsEndpoint extends Endpoint {
                 };
             },
             gender: "required",
-            weight: async (value: unknown): Promise<ValidationResult> => {
+            weight: (value: unknown): ValidatorResult => {
                 const valid = !!value && typeof value === "number" && value > 0;
                 return valid ? {
                     ok: true,
@@ -60,7 +90,7 @@ export class PatientsEndpoint extends Endpoint {
                     message: "Invalid weight.",
                 };
             },
-            height: async (value: unknown): Promise<ValidationResult> => {
+            height: (value: unknown): ValidatorResult => {
                 const valid = !!value && typeof value === "number" && value > 0;
                 return valid ? {
                     ok: true,
@@ -70,7 +100,7 @@ export class PatientsEndpoint extends Endpoint {
                     message: "Invalid height.",
                 };
             },
-            rhesusFactor: async (value: unknown): Promise<ValidationResult> => {
+            rhesusFactor: (value: unknown): ValidatorResult => {
                 const valid = !!value && typeof value === "string" && ["+", "-"].includes(value);
                 return valid ? {
                     ok: true,
@@ -80,7 +110,7 @@ export class PatientsEndpoint extends Endpoint {
                     message: "Invalid rhesusFactor.",
                 };
             },
-            bloodTypeId: async (value: unknown): Promise<ValidationResult> => {
+            bloodTypeId: async (value: unknown): Promise<ValidatorResult> => {
                 if (!(value && typeof value === "number" && value > 0)) {
                     return {
                         ok: false,
@@ -103,7 +133,7 @@ export class PatientsEndpoint extends Endpoint {
                     message: "Invalid bloodTypeId.",
                 };
             },
-            insuranceTypeId: async (value: unknown): Promise<ValidationResult> => {
+            insuranceTypeId: async (value: unknown): Promise<ValidatorResult> => {
                 if (!(value && typeof value === "number" && value > 0)) {
                     return {
                         ok: false,
@@ -126,7 +156,7 @@ export class PatientsEndpoint extends Endpoint {
                     message: "Invalid insuranceTypeId.",
                 };
             },
-            password: async (value: unknown): Promise<ValidationResult> => {
+            password: (value: unknown): ValidatorResult => {
                 const valid = !!value && typeof value === "string" && value.length >= 8;
                 return valid ? {
                     ok: true,
@@ -233,7 +263,18 @@ export class PatientsEndpoint extends Endpoint {
             return;
         }
 
-        const validationResult = await validate(request.body, this.patientValidators);
+        const registeredPatient = await db
+            .selectFrom("patient")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (registeredPatient) {
+            this.sendError(response, HTTPStatus.CONFLICT, `Patient with rut ${rut} already exists.`);
+            return;
+        }
+
+        const validationResult = await validate(request.body, this.newPatientValidators);
 
         if (!validationResult.ok) {
             this.sendError(response, validationResult.status, validationResult.message);
@@ -255,30 +296,7 @@ export class PatientsEndpoint extends Endpoint {
             bloodTypeId,
             insuranceTypeId,
             password,
-        } = request.body;
-
-        const registeredPatient = await db
-            .selectFrom("patient")
-            .select([
-                "rut",
-                "email",
-                "phone",
-            ])
-            .where(eb =>
-                eb("rut", "=", rut)
-                    .or("email", "=", email)
-                    .or("phone", "=", phone)
-            )
-            .executeTakeFirst();
-
-        if (registeredPatient) {
-            const conflict = registeredPatient.rut === rut ? `rut ${rut}`
-                : registeredPatient.email === email ? `email ${email}`
-                    : `phone ${phone}`;
-
-            this.sendError(response, HTTPStatus.CONFLICT, `Patient with ${conflict} already exists.`);
-            return;
-        }
+        } = validationResult.value;
 
         const hashedPassword = hashPassword(password);
 
@@ -344,7 +362,7 @@ export class PatientsEndpoint extends Endpoint {
 
     @DeleteMethod({ path: "/:rut/session", requiresAuthorization: TokenType.PATIENT })
     public async expireSession(request: Request, response: Response): Promise<void> {
-        const token = request.headers.authorization!.slice(7);
+        const { token } = this.getToken(request)!;
 
         await revokeToken(token);
 

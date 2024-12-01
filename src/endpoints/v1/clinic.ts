@@ -3,7 +3,7 @@ import { Clinic, db, isValidEmail, isValidPhone } from "../../db";
 import { TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { Endpoint, GetMethod, HTTPStatus, PatchMethod } from "../base";
-import { validate, ValidationResult, Validator } from "../validator";
+import { validate, ValidatorResult, Validator } from "../validator";
 
 export class ClinicEndpoint extends Endpoint {
     private readonly clinicValidators: Record<keyof ClinicObject, Validator>;
@@ -13,7 +13,7 @@ export class ClinicEndpoint extends Endpoint {
 
         this.clinicValidators = {
             name: "skip",
-            email: async (value: unknown): Promise<ValidationResult> => {
+            email: async (value: unknown): Promise<ValidatorResult> => {
                 if (!value) {
                     return {
                         ok: true,
@@ -29,7 +29,7 @@ export class ClinicEndpoint extends Endpoint {
                     message: "Invalid email.",
                 };
             },
-            phone: async (value: unknown): Promise<ValidationResult> => {
+            phone: async (value: unknown): Promise<ValidatorResult> => {
                 if (!value) {
                     return {
                         ok: true,
@@ -46,7 +46,7 @@ export class ClinicEndpoint extends Endpoint {
                 };
             },
             address: "skip",
-            openingTime: async (value: unknown): Promise<ValidationResult> => {
+            openingTime: async (value: unknown): Promise<ValidatorResult> => {
                 if (!value) {
                     return {
                         ok: true,
@@ -62,7 +62,7 @@ export class ClinicEndpoint extends Endpoint {
                     message: "Invalid openingTime.",
                 };
             },
-            closingTime: async (value: unknown): Promise<ValidationResult> => {
+            closingTime: async (value: unknown): Promise<ValidatorResult> => {
                 if (!value) {
                     return {
                         ok: true,

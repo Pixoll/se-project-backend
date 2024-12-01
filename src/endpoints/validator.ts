@@ -1,16 +1,26 @@
 import { HTTPStatus } from "./base";
 
-export type Validator = "required" | "skip" | ((value: unknown) => Promise<ValidationResult>);
+export type Validator = "required" | "skip" | ((value: unknown) => ValidatorResult | Promise<ValidatorResult>);
 
-export type ValidationResult = {
+export type ValidatorResult = ValidationError | {
     ok: true;
-} | {
+};
+
+export type ValidationResult<T> = ValidationError | {
+    ok: true;
+    value: T;
+};
+
+type ValidationError = {
     ok: false;
     status: HTTPStatus;
     message: string;
 };
 
-export async function validate<T>(target: T, validators: Record<keyof T & string, Validator>): Promise<ValidationResult> {
+export async function validate<T>(target: T, validators: Record<keyof T & string, Validator>): Promise<ValidationResult<T>> {
+    // @ts-expect-error: if it's valid, it will be of type T
+    const result: T = {};
+
     for (const [key, validator] of Object.entries(validators) as Array<[keyof T & string, Validator]>) {
         if (validator === "skip") {
             continue;
@@ -36,9 +46,12 @@ export async function validate<T>(target: T, validators: Record<keyof T & string
         if (!validationResult.ok) {
             return validationResult;
         }
+
+        result[key] = value;
     }
 
     return {
         ok: true,
+        value: result,
     };
 }
