@@ -172,7 +172,9 @@ begin
                     where t.schedule_id = new.schedule_id
                     and t.day = new.day
                     and (
-                        (t.start < new.start and new.start < t.end)
+                        t.start = new.start
+                        or t.end = new.end
+                        or (t.start < new.start and new.start < t.end)
                         or (t.start < new.end and new.end < t.end)
                         or (new.start < t.start and t.end < new.end)
                         or (t.start < new.start and new.end < t.end)
