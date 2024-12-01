@@ -114,21 +114,6 @@ components:
           type: number
         name:
           type: string
-    MedicalRecord:
-      type: object
-      properties:
-        allergiesHistory:
-          type: string
-          maxLength: 1000
-        morbidityHistory:
-          type: string
-          maxLength: 1000
-        surgicalHistory:
-          type: string
-          maxLength: 1000
-        medications:
-          type: string
-          maxLength: 1000
     NewPatient:
       type: object
       required:
@@ -243,8 +228,18 @@ components:
           type: string
         insuranceType:
           type: string
-        medicalRecord:
-          $ref: "#/components/schemas/MedicalRecord"
+        allergiesHistory:
+          type: string
+          maxLength: 1000
+        morbidityHistory:
+          type: string
+          maxLength: 1000
+        surgicalHistory:
+          type: string
+          maxLength: 1000
+        medications:
+          type: string
+          maxLength: 1000
     PatientUpdate:
       type: object
       properties:
