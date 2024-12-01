@@ -410,11 +410,30 @@ insert into medic values
     ("4000000-3", 5, 2);
 
 insert into appointment values
-    (weekday(date_add(current_date(), interval 1 day)) * 2 + 1, date_add(current_date(), interval 1 day), null, "1000000-9", "Lorem ipsum 1", true),
-    (14 + weekday(date_add(current_date(), interval 2 day)) * 2 + 1, date_add(current_date(), interval 2 day), null, "1000000-9", "Lorem ipsum 2", false),
-    ((weekday(date_add(current_date(), interval 3 day)) + 1) * 2, date_add(current_date(), interval 3 day), null, "2000000-7", "Lorem ipsum 3", true),
-    (14 + (weekday(date_add(current_date(), interval 4 day)) + 1) * 2, date_add(current_date(), interval 4 day), null, "2000000-7", "Lorem ipsum 4", false),
-    (weekday(date_add(current_date(), interval 7 day)) * 2 + 1, date_add(current_date(), interval 7 day), null, "1000000-9", "Lorem ipsum 5", false),
-    (14 + weekday(date_add(current_date(), interval 8 day)) * 2 + 1, date_add(current_date(), interval 8 day), null, "1000000-9", "Lorem ipsum 6", false),
-    ((weekday(date_add(current_date(), interval 9 day)) + 1) * 2, date_add(current_date(), interval 9 day), null, "2000000-7", "Lorem ipsum 7", false),
-    (14 + (weekday(date_add(current_date(), interval 10 day)) + 1) * 2,date_add(current_date(), interval 10 day), null, "2000000-7", "Lorem ipsum 8", false);
+    (weekday(date_add(current_date(), interval 1 day)) * 2 + 1, date_add(current_date(), interval 1 day), null, "1000000-9", "Lorem ipsum", true),
+    (weekday(date_add(current_date(), interval 4 day) + 1) * 2, date_add(current_date(), interval 4 day), null, "1000000-9", "Lorem ipsum", true),
+    (weekday(date_add(current_date(), interval 5 day)) * 2 + 1, date_add(current_date(), interval 5 day), null, "1000000-9", "Lorem ipsum", true),
+    (weekday(date_add(current_date(), interval 8 day)) * 2 + 2, date_add(current_date(), interval 8 day), null, "1000000-9", "Lorem ipsum", false),
+    (weekday(date_add(current_date(), interval 14 day)) * 2 + 1, date_add(current_date(), interval 14 day), null, "1000000-9", "Lorem ipsum", false),
+    (weekday(date_add(current_date(), interval 15 day)) * 2 + 1, date_add(current_date(), interval 15 day), null, "1000000-9", "Lorem ipsum", false),
+    (weekday(date_add(current_date(), interval 21 day)) * 2 + 1, date_add(current_date(), interval 21 day), null, "1000000-9", "Lorem ipsum", false),
+
+    (14 + weekday(date_add(current_date(), interval 8 day)) * 2 + 2, date_add(current_date(), interval 8 day), null, "1000000-9", "Lorem ipsum", false),
+    (14 + weekday(date_add(current_date(), interval 9 day)) * 2 + 1, date_add(current_date(), interval 9 day), null, "1000000-9", "Lorem ipsum", false),
+    (14 + weekday(date_add(current_date(), interval 15 day)) * 2 + 1, date_add(current_date(), interval 15 day), null, "1000000-9", "Lorem ipsum", false),
+    (14 + weekday(date_add(current_date(), interval 16 day)) * 2 + 1, date_add(current_date(), interval 16 day), null, "1000000-9", "Lorem ipsum", false),
+    (14 + weekday(date_add(current_date(), interval 22 day)) * 2 + 1, date_add(current_date(), interval 22 day), null, "1000000-9", "Lorem ipsum", false),
+
+    ((weekday(date_add(current_date(), interval 3 day))) * 2 + 1, date_add(current_date(), interval 3 day), null, "2000000-7", "Lorem ipsum", true),
+    ((weekday(date_add(current_date(), interval 6 day)) + 1) * 2,date_add(current_date(), interval 6 day), null, "2000000-7", "Lorem ipsum", true),
+    ((weekday(date_add(current_date(), interval 9 day))) * 2 + 1, date_add(current_date(), interval 9 day), null, "2000000-7", "Lorem ipsum", false),
+    ((weekday(date_add(current_date(), interval 10 day)) + 1) * 2, date_add(current_date(), interval 10 day), null, "2000000-7", "Lorem ipsum", false),
+    ((weekday(date_add(current_date(), interval 16 day)) + 1) * 2, date_add(current_date(), interval 16 day), null, "2000000-7", "Lorem ipsum", false),
+    ((weekday(date_add(current_date(), interval 17 day)) + 1) * 2, date_add(current_date(), interval 17 day), null, "2000000-7", "Lorem ipsum", false),
+    ((weekday(date_add(current_date(), interval 23 day)) + 1) * 2, date_add(current_date(), interval 23 day), null, "2000000-7", "Lorem ipsum", false),
+
+    (14 + (weekday(date_add(current_date(), interval 4 day)) + 1) * 2, date_add(current_date(), interval 4 day), null, "2000000-7", "Lorem ipsum", true),
+    (14 + (weekday(date_add(current_date(), interval 11 day)) + 1) * 2, date_add(current_date(), interval 11 day), null, "2000000-7", "Lorem ipsum", false),
+    (14 + (weekday(date_add(current_date(), interval 17 day)) + 1) * 2,date_add(current_date(), interval 17 day), null, "2000000-7", "Lorem ipsum", false),
+    (14 + (weekday(date_add(current_date(), interval 20 day)) + 1) * 2, date_add(current_date(), interval 20 day), null, "2000000-7", "Lorem ipsum", false),
+    (14 + (weekday(date_add(current_date(), interval 24 day)) + 1) * 2,date_add(current_date(), interval 24 day), null, "2000000-7", "Lorem ipsum", false);
