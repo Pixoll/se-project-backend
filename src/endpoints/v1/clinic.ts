@@ -12,70 +12,68 @@ export class ClinicEndpoint extends Endpoint {
         super("/clinic");
 
         this.clinicValidators = {
-            name: "skip",
-            email: async (value: unknown): Promise<ValidatorResult> => {
-                if (!value) {
-                    return {
-                        ok: true,
-                    };
-                }
-
-                const valid = typeof value === "string" && isValidEmail(value);
+            name: async (value, key): Promise<ValidatorResult> => {
+                const valid = typeof value === "undefined" || typeof value === "string";
                 return valid ? {
                     ok: true,
                 } : {
                     ok: false,
                     status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid email.",
+                    message: `Invalid ${key}.`,
                 };
             },
-            phone: async (value: unknown): Promise<ValidatorResult> => {
-                if (!value) {
-                    return {
-                        ok: true,
-                    };
-                }
-
-                const valid = typeof value === "number" && isValidPhone(value);
+            email: async (value, key): Promise<ValidatorResult> => {
+                const valid = typeof value === "undefined" || (typeof value === "string" && isValidEmail(value));
                 return valid ? {
                     ok: true,
                 } : {
                     ok: false,
                     status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid phone.",
+                    message: `Invalid ${key}.`,
                 };
             },
-            address: "skip",
-            openingTime: async (value: unknown): Promise<ValidatorResult> => {
-                if (!value) {
-                    return {
-                        ok: true,
-                    };
-                }
-
-                const valid = typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value);
+            phone: async (value, key): Promise<ValidatorResult> => {
+                const valid = typeof value === "undefined" || (typeof value === "number" && isValidPhone(value));
                 return valid ? {
                     ok: true,
                 } : {
                     ok: false,
                     status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid openingTime.",
+                    message: `Invalid ${key}.`,
                 };
             },
-            closingTime: async (value: unknown): Promise<ValidatorResult> => {
-                if (!value) {
-                    return {
-                        ok: true,
-                    };
-                }
-
-                const valid = typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value);
+            address: async (value, key): Promise<ValidatorResult> => {
+                const valid = typeof value === "undefined" || typeof value === "string";
                 return valid ? {
                     ok: true,
                 } : {
                     ok: false,
                     status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid closingTime.",
+                    message: `Invalid ${key}.`,
+                };
+            },
+            openingTime: async (value, key): Promise<ValidatorResult> => {
+                const valid = typeof value === "undefined" || (
+                    typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value)
+                );
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            closingTime: async (value, key): Promise<ValidatorResult> => {
+                const valid = typeof value === "undefined" || (
+                    typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value)
+                );
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
                 };
             },
         };
@@ -104,6 +102,18 @@ export class ClinicEndpoint extends Endpoint {
 
     @PatchMethod({ requiresAuthorization: TokenType.ADMIN })
     public async updateClinic(request: Request<unknown, unknown, Partial<ClinicObject>>, response: Response): Promise<void> {
+        const validationResult = await validate(request.body, this.clinicValidators);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
+            return;
+        }
+
+        if (Object.keys(validationResult.value).length === 0) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
         const {
             name,
             email,
@@ -111,19 +121,7 @@ export class ClinicEndpoint extends Endpoint {
             address,
             openingTime,
             closingTime,
-        } = request.body;
-
-        if (!name && !email && !phone && !address && !openingTime && !closingTime) {
-            this.sendError(response, HTTPStatus.BAD_REQUEST, "Request body is empty.");
-            return;
-        }
-
-        const validationResult = await validate(request.body, this.clinicValidators);
-
-        if (!validationResult.ok) {
-            this.sendError(response, validationResult.status, validationResult.message);
-            return;
-        }
+        } = validationResult.value;
 
         const clinic = await db
             .selectFrom("clinic")
