@@ -100,7 +100,7 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @GetMethod({ path: "/:rut", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
-    public async getCurrentMedic(request: Request<{ rut: string }>, response: Response<Omit<Medic, "rut">>): Promise<void> {
+    public async getMedic(request: Request<{ rut: string }>, response: Response<Omit<Medic, "rut">>): Promise<void> {
         const { rut } = request.params;
 
         if (!isValidRut(rut)) {
@@ -145,10 +145,7 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
-    public async getCurrentMedicSchedule(
-        request: Request<{ rut: string }>,
-        response: Response<ScheduleSlot[]>
-    ): Promise<void> {
+    public async getMedicSchedule(request: Request<{ rut: string }>, response: Response<ScheduleSlot[]>): Promise<void> {
         const { rut } = request.params;
 
         if (!isValidRut(rut)) {
@@ -191,7 +188,7 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @PostMethod({ path: "/:rut/schedule/slots", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
-    public async createScheduleSlotForCurrent(
+    public async createMedicScheduleSlot(
         request: Request<{ rut: string }, unknown, NewScheduleSlot>,
         response: Response
     ): Promise<void> {
@@ -266,7 +263,7 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @PatchMethod({ path: "/:rut/schedule/slots/:id", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
-    public async updateScheduleSlotFromCurrent(
+    public async updateMedicScheduleSlot(
         request: Request<{ rut: string; id: string }, unknown, ScheduleSlotUpdate>,
         response: Response
     ): Promise<void> {
@@ -378,7 +375,7 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @DeleteMethod({ path: "/:rut/schedule/slots/:id", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
-    public async deleteScheduleSlotFromCurrent(
+    public async deleteMedicScheduleSlot(
         request: Request<{ rut: string; id: string }>,
         response: Response
     ): Promise<void> {
