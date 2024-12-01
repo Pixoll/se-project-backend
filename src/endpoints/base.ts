@@ -591,9 +591,6 @@ function makeMethodDecorator<T extends EndpointMethod>(
                 path: options.path ?? "",
             },
         });
-
-        const EndpointConstructor = target.constructor as new () => Endpoint;
-        logger.log(`Registered ${method} ${new EndpointConstructor().path + (options.path ?? "")}`);
     };
 }
 

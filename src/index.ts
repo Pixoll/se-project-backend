@@ -64,6 +64,9 @@ function applyEndpointMethods(EndpointClass: new () => Endpoint, endpoint: Endpo
                 const path = endpoint.path + member[decoratorName].path;
                 const method = member[decoratorName].method.toLowerCase() as Lowercase<Method>;
                 router[method](path, member.bind(endpoint));
+
+                logger.log(`Registered ${method.toUpperCase()} ${path}`);
+
                 break;
             }
         }
