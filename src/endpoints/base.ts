@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../logger";
-import { doesTokenExist, getTokenData, TokenType } from "../tokens";
+import { getTokenData, Token, TokenType } from "../tokens";
 
 export abstract class Endpoint {
     protected constructor(public readonly path: string) {
@@ -23,6 +23,18 @@ export abstract class Endpoint {
 
     protected sendError(response: Response, status: HTTPStatus, message: string): void {
         sendError(response, status, message);
+    }
+
+    protected getToken(request: Request): Token | null {
+        const bearerToken = request.headers.authorization ?? "";
+
+        if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)) {
+            return null;
+        }
+
+        const token = bearerToken.slice(7);
+        const tokenData = getTokenData(token);
+        return tokenData ?? null;
     }
 }
 
@@ -557,24 +569,14 @@ function makeMethodDecorator<T extends EndpointMethod>(
             const oldValue = descriptor.value;
 
             descriptor.value = (async function (this: Endpoint, request: Request, response: Response): Promise<void> {
-                const bearerToken = request.headers.authorization;
-                if (!bearerToken) {
-                    this.sendError(response, HTTPStatus.UNAUTHORIZED, "Missing session token.");
-                    return;
-                }
+                const token = this.getToken(request);
 
-                const token = bearerToken.slice(7);
-                const tokenData = getTokenData(token);
-
-                if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)
-                    || !tokenData
-                    || (options.requiresAuthorization !== true && (
-                        Array.isArray(options.requiresAuthorization)
-                            ? !options.requiresAuthorization.includes(tokenData.type)
-                            : tokenData.type !== options.requiresAuthorization
-                    ))
-                ) {
-                    this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid token.");
+                if (!token || (options.requiresAuthorization !== true && (
+                    Array.isArray(options.requiresAuthorization)
+                        ? !options.requiresAuthorization.includes(token.type)
+                        : token.type !== options.requiresAuthorization
+                ))) {
+                    this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
                     return;
                 }
 

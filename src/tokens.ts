@@ -10,6 +10,7 @@ export enum TokenType {
 }
 
 export type Token = {
+    token: string;
     rut: string;
     type: TokenType;
 };
@@ -27,7 +28,7 @@ export async function loadTokens(): Promise<void> {
 
     for (const { rut, token } of patientTokens) {
         if (token) {
-            tokens.set(token, { rut, type: TokenType.PATIENT });
+            tokens.set(token, { token, rut, type: TokenType.PATIENT });
         }
     }
 
@@ -47,7 +48,7 @@ export async function loadTokens(): Promise<void> {
 
     for (const { rut, token, type } of employeeTokens) {
         if (token) {
-            tokens.set(token, { rut, type });
+            tokens.set(token, { token, rut, type });
         }
     }
 }
@@ -64,13 +65,9 @@ export async function generateToken(rut: string, type: TokenType): Promise<strin
         .set("session_token", token)
         .execute();
 
-    tokens.set(token, { rut, type });
+    tokens.set(token, { token, rut, type });
 
     return token;
-}
-
-export function doesTokenExist(token: string): boolean {
-    return tokens.has(token);
 }
 
 export function getTokenData(token: string): Token | undefined {
