@@ -8,6 +8,7 @@ tags:
   - name: Clinic
   - name: Patients
   - name: Ping
+  - name: Medics
   - name: Misc
   - name: Schedule
 components:
@@ -113,6 +114,30 @@ components:
         id:
           type: number
         name:
+          type: string
+    Medic:
+      type: object
+      required:
+        - fullName
+        - email
+        - phone
+        - birthDate
+        - gender
+        - specialty
+      properties:
+        rut:
+          type: string
+        fullName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+        specialty:
           type: string
     NewPatient:
       type: object
@@ -283,6 +308,30 @@ components:
     Rut:
       type: string
       pattern: ^\d{7,9}-[\dk]$
+    ScheduleSlot:
+      type: object
+      required:
+        - day
+        - start
+        - end
+      properties:
+        day:
+          type: string
+          enum: [ mo, tu, we, th, fr, sa, su ]
+        start:
+          $ref: "#/components/schemas/Time"
+        end:
+          $ref: "#/components/schemas/Time"
+    ScheduleSlotUpdate:
+      type: object
+      properties:
+        day:
+          type: string
+          enum: [ mo, tu, we, th, fr, sa, su ]
+        start:
+          $ref: "#/components/schemas/Time"
+        end:
+          $ref: "#/components/schemas/Time"
     Specialty:
       type: object
       properties:
@@ -292,7 +341,7 @@ components:
           type: string
     Time:
       type: string
-      pattern: ^[0-2][0-9]:[0-5][0-9]$
+      pattern: ^(?:[0-1][0-9]|2[0-3]):[0-5][0-9]$
   securitySchemes:
     PatientSessionToken:
       type: http
@@ -358,6 +407,193 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/InsuranceType"
+  /medics:
+    get:
+      tags: [ Medics ]
+      summary: Get a list of all medics.
+      responses:
+        200:
+          description: Successfully retrieved medics list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medic"
+  /medics/{rut}:
+    get:
+      tags: [ Medics ]
+      summary: Get a medic by their rut.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the medic's information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medic"
+        400:
+          description: Malformed rut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /medics/{rut}/schedule:
+    get:
+      tags: [ Medics, Schedule ]
+      summary: Get a medic's schedule by their rut.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the medic's schedule.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/ScheduleSlot"
+                    - type: object
+                      required:
+                        - id
+                        - active
+                      properties:
+                        id:
+                          type: number
+                        active:
+                          type: boolean
+        400:
+          description: Malformed rut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /medics/{rut}/schedule/slots:
+    post:
+      tags: [ Medics, Schedule ]
+      summary: Add a new slot to the medic's schedule.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleSlot"
+      responses:
+        201:
+          description: Successfully created the new slot.
+        400:
+          description: Malformed rut or slot data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /medics/{rut}/schedule/slots/{id}:
+    patch:
+      tags: [ Medics, Schedule ]
+      summary: Update a medic's schedule slot by its id.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleSlotUpdate"
+      responses:
+        201:
+          description: Successfully updated the slot.
+        304:
+          description: Slot was not modified.
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic or slot not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [ Medics, Schedule ]
+      summary: Delete a medic's schedule slot by its id.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        201:
+          description: Successfully deleted the slot.
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic or slot do not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+      - name: id
+        in: path
+        description: The time slot's id.
+        required: true
+        schema:
+          type: number
+          minimum: 1
   /patients/{rut}:
     get:
       tags: [ Patients ]
@@ -379,6 +615,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
         404:
           description: Patient does not exist.
           content:
@@ -523,7 +761,7 @@ paths:
           description: API is available.
   /schedule:
     get:
-      tags: [ Schedule ]
+      tags: [ Medics, Schedule ]
       summary: Get the clinic's current appointments schedule.
       responses:
         200:
@@ -556,7 +794,7 @@ paths:
               minimum: 1
   /specialties:
     get:
-      tags: [ Misc ]
+      tags: [ Medics, Misc ]
       summary: Get a list of all specialties.
       responses:
         200:

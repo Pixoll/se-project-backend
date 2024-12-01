@@ -472,6 +472,10 @@ export type TimeSlotTable = {
      * - SQL: `end time not null`
      */
     end: string;
+    /**
+     * - SQL: `active boolean not null default true`
+     */
+    active: Generated<boolean>;
 };
 
 export type TimeSlot = Selectable<TimeSlotTable>;

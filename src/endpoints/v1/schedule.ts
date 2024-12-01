@@ -55,7 +55,8 @@ export class ScheduleEndpoint extends Endpoint {
                     .whereRef("a.time_slot_id", "=", "t.id")
                     .where("a.date" ,">=", sql<string>`current_date()`)
                 }), cast("[]" as json))`.as("appointmentDates"),
-            ]);
+            ])
+            .where("t.active", "=", true);
 
         if (medics.length > 0) {
             dbQuery = dbQuery.where("m.rut", "in", medics);
@@ -98,7 +99,7 @@ type GroupedTimeSlots = {
     rut: string;
     fullName: string;
     specialty: string;
-    slots: Array<Omit<TimeSlot, "schedule_id"> & {
+    slots: Array<Omit<TimeSlot, "active" | "schedule_id"> & {
         appointmentDates: string[];
     }>;
 };

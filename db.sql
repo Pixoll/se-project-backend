@@ -158,6 +158,7 @@ create table time_slot (
     day enum("mo", "tu", "we", "th", "fr", "sa", "su") not null,
     start time not null,
     end time not null,
+    active boolean not null default true,
     check (start < end),
     foreign key (schedule_id) references schedule(id)
 );
@@ -168,9 +169,14 @@ for each row
 begin
     declare conflict boolean;
 
+    if not new.active then
+        set new.active = true;
+    end if;
+
     set conflict = (select true from time_slot as t
                     where t.schedule_id = new.schedule_id
                     and t.day = new.day
+                    and t.active
                     and (
                         t.start = new.start
                         or t.end = new.end
@@ -234,12 +240,20 @@ begin
         signal sqlstate "45000" set message_text = "Appointment cannot be set in the past.";
     end if;
 
+    set conflict = (select not t.active
+                    from time_slot as t
+                    where t.id = new.time_slot_id);
+
+    if conflict then
+        signal sqlstate "45000" set message_text = "Time slot is not active.";
+    end if;
+
     set conflict = (select t.day != elt(weekday(new.date) + 1, "mo", "tu", "we", "th", "fr", "sa", "su")
                     from time_slot as t
                     where t.id = new.time_slot_id);
 
     if conflict then
-        signal sqlstate "45000" set message_text = "Appointment day and timeslot day do not match.";
+        signal sqlstate "45000" set message_text = "Appointment day and time slot day do not match.";
     end if;
 
     set conflict = (select new.date = current_date() and current_time() > t.start
@@ -247,7 +261,60 @@ begin
                     where t.id = new.time_slot_id);
 
     if conflict then
-        signal sqlstate "45000" set message_text = "Timeslot has already started.";
+        signal sqlstate "45000" set message_text = "Time slot has already started.";
+    end if;
+end; $$
+delimiter ;
+
+delimiter $$
+create trigger time_slot_update_check_trigger before update on time_slot
+for each row
+begin
+    declare conflict boolean;
+
+    set conflict = (select true from time_slot as t
+                    where t.schedule_id = new.schedule_id
+                    and t.day = new.day
+                    and t.active
+                    and (
+                        t.start = new.start
+                        or t.end = new.end
+                        or (t.start < new.start and new.start < t.end)
+                        or (t.start < new.end and new.end < t.end)
+                        or (new.start < t.start and t.end < new.end)
+                        or (t.start < new.start and new.end < t.end)
+                    ));
+
+    if conflict then
+        signal sqlstate "45000" set message_text = "Time slot overlaps with another.";
+    end if;
+
+    if not new.active then
+        set conflict = (select true
+                        from appointment as a
+                        where a.time_slot_id = new.id
+                        and a.confirmed
+                        and a.date >= current_date());
+
+        if conflict then
+            signal sqlstate "45000" set message_text = "Time slot has confirmed appointments associated with it.";
+        end if;
+    end if;
+end; $$
+delimiter ;
+
+delimiter $$
+create trigger time_slot_delete_check_trigger before delete on time_slot
+for each row
+begin
+    declare conflict boolean;
+
+    set conflict = (select true
+                    from appointment as a
+                    where a.time_slot_id = old.id);
+
+    if conflict then
+        signal sqlstate "45000" set message_text = "Time slot has appointments associated with it.";
     end if;
 end; $$
 delimiter ;
@@ -300,35 +367,35 @@ insert into schedule values
     (null),
     (null);
 
-insert into time_slot values
-    (null, 1, "mo", "08:00", "08:30"),
-    (null, 1, "mo", "08:30", "09:00"),
-    (null, 1, "tu", "09:00", "09:30"),
-    (null, 1, "tu", "09:30", "10:00"),
-    (null, 1, "we", "10:00", "10:30"),
-    (null, 1, "we", "10:30", "11:00"),
-    (null, 1, "th", "11:00", "11:30"),
-    (null, 1, "th", "11:30", "12:00"),
-    (null, 1, "fr", "12:00", "12:30"),
-    (null, 1, "fr", "12:30", "13:00"),
-    (null, 1, "sa", "13:00", "13:30"),
-    (null, 1, "sa", "13:30", "14:00"),
-    (null, 1, "su", "14:00", "14:30"),
-    (null, 1, "su", "14:30", "15:00"),
-    (null, 2, "mo", "15:00", "15:30"),
-    (null, 2, "mo", "15:30", "16:00"),
-    (null, 2, "tu", "16:00", "16:30"),
-    (null, 2, "tu", "16:30", "17:00"),
-    (null, 2, "we", "17:00", "17:30"),
-    (null, 2, "we", "17:30", "18:00"),
-    (null, 2, "th", "18:00", "18:30"),
-    (null, 2, "th", "18:30", "19:00"),
-    (null, 2, "fr", "19:00", "19:30"),
-    (null, 2, "fr", "19:30", "20:00"),
-    (null, 2, "sa", "20:00", "20:30"),
-    (null, 2, "sa", "20:30", "21:00"),
-    (null, 2, "su", "21:00", "21:30"),
-    (null, 2, "su", "21:30", "22:00");
+insert into time_slot (schedule_id, day, start, end) values
+    (1, "mo", "08:00", "08:30"),
+    (1, "mo", "08:30", "09:00"),
+    (1, "tu", "09:00", "09:30"),
+    (1, "tu", "09:30", "10:00"),
+    (1, "we", "10:00", "10:30"),
+    (1, "we", "10:30", "11:00"),
+    (1, "th", "11:00", "11:30"),
+    (1, "th", "11:30", "12:00"),
+    (1, "fr", "12:00", "12:30"),
+    (1, "fr", "12:30", "13:00"),
+    (1, "sa", "13:00", "13:30"),
+    (1, "sa", "13:30", "14:00"),
+    (1, "su", "14:00", "14:30"),
+    (1, "su", "14:30", "15:00"),
+    (2, "mo", "15:00", "15:30"),
+    (2, "mo", "15:30", "16:00"),
+    (2, "tu", "16:00", "16:30"),
+    (2, "tu", "16:30", "17:00"),
+    (2, "we", "17:00", "17:30"),
+    (2, "we", "17:30", "18:00"),
+    (2, "th", "18:00", "18:30"),
+    (2, "th", "18:30", "19:00"),
+    (2, "fr", "19:00", "19:30"),
+    (2, "fr", "19:30", "20:00"),
+    (2, "sa", "20:00", "20:30"),
+    (2, "sa", "20:30", "21:00"),
+    (2, "su", "21:00", "21:30"),
+    (2, "su", "21:30", "22:00");
 
 insert into employee values
     -- password: asdfghjkl
