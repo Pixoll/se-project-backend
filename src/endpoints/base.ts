@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../logger";
-import { doesTokenExist, getTokenType, TokenType } from "../tokens";
+import { doesTokenExist, getTokenData, TokenType } from "../tokens";
 
 export abstract class Endpoint {
     protected constructor(public readonly path: string) {
@@ -564,13 +564,14 @@ function makeMethodDecorator<T extends EndpointMethod>(
                 }
 
                 const token = bearerToken.slice(7);
+                const tokenData = getTokenData(token);
 
                 if (!/^Bearer [A-Za-z0-9_-]{86}$/.test(bearerToken)
-                    || !doesTokenExist(token)
+                    || !tokenData
                     || (options.requiresAuthorization !== true && (
                         Array.isArray(options.requiresAuthorization)
-                            ? !options.requiresAuthorization.includes(getTokenType(token)!)
-                            : getTokenType(token) !== options.requiresAuthorization
+                            ? !options.requiresAuthorization.includes(tokenData.type)
+                            : tokenData.type !== options.requiresAuthorization
                     ))
                 ) {
                     this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid token.");

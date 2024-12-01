@@ -9,23 +9,32 @@ export enum TokenType {
     ADMIN,
 }
 
-const tokens = new Map<string, TokenType>();
+export type Token = {
+    rut: string;
+    type: TokenType;
+};
+
+const tokens = new Map<string, Token>();
 
 export async function loadTokens(): Promise<void> {
     const patientTokens = await db
         .selectFrom("patient")
-        .select("session_token as token")
+        .select([
+            "rut",
+            "session_token as token",
+        ])
         .execute();
 
-    for (const { token } of patientTokens) {
+    for (const { rut, token } of patientTokens) {
         if (token) {
-            tokens.set(token, TokenType.PATIENT);
+            tokens.set(token, { rut, type: TokenType.PATIENT });
         }
     }
 
     const employeeTokens = await db
         .selectFrom("employee")
         .select([
+            "rut",
             "session_token as token",
             sql<TokenType>`(
                 case
@@ -36,9 +45,9 @@ export async function loadTokens(): Promise<void> {
         ])
         .execute();
 
-    for (const { token, type } of employeeTokens) {
+    for (const { rut, token, type } of employeeTokens) {
         if (token) {
-            tokens.set(token, type);
+            tokens.set(token, { rut, type });
         }
     }
 }
@@ -55,7 +64,7 @@ export async function generateToken(rut: string, type: TokenType): Promise<strin
         .set("session_token", token)
         .execute();
 
-    tokens.set(token, type);
+    tokens.set(token, { rut, type });
 
     return token;
 }
@@ -64,12 +73,12 @@ export function doesTokenExist(token: string): boolean {
     return tokens.has(token);
 }
 
-export function getTokenType(token: string): TokenType | undefined {
+export function getTokenData(token: string): Token | undefined {
     return tokens.get(token);
 }
 
 export async function revokeToken(token: string): Promise<void> {
-    const type = tokens.get(token);
+    const { type } = tokens.get(token) ?? { type: null };
 
     if (type !== null) {
         await db
