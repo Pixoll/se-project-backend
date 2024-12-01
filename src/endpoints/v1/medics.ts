@@ -466,6 +466,7 @@ export class MedicsEndpoint extends Endpoint {
                 )), json_array())`.as("appointments"),
             ])
             .where("m.rut", "=", rut)
+            .groupBy("t.id")
             .execute();
 
         this.sendOk(response, schedule);
