@@ -302,13 +302,6 @@ export class MedicsEndpoint extends Endpoint {
             return;
         }
 
-        const token = this.getToken(request)!;
-
-        if (token.type === TokenType.MEDIC && token.rut !== rut) {
-            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
-            return;
-        }
-
         const medic = await db
             .selectFrom("medic as m")
             .innerJoin("employee as e", "e.rut", "m.rut")
