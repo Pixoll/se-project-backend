@@ -1,4 +1,5 @@
 import cors from "cors";
+import detectPort from "detect-port";
 import { config as dotenvConfig } from "dotenv";
 import express, { Router } from "express";
 import qs from "qs";
@@ -31,8 +32,14 @@ void async function (): Promise<void> {
     connectDB();
     await loadTokens();
 
-    app.listen(PORT, () => {
-        logger.log("API listening on port:", PORT);
+    const freePort = await detectPort(PORT);
+
+    if (freePort !== PORT) {
+        logger.warn(`Port ${PORT} is currently in use, using ${freePort} instead...`);
+    }
+
+    app.listen(freePort, () => {
+        logger.log("API listening on port:", freePort);
     });
 
     loadSwaggerV1Docs(router, v1Path);
