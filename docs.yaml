@@ -363,24 +363,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/InsuranceType"
-  /patients/me:
-    get:
-      tags: [ Patients ]
-      summary: Get the current patient's information.
-      security:
-        - PatientSessionToken: [ ]
-      responses:
-        200:
-          description: Successfully retrieved the patient's information.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Patient"
   /patients/{rut}:
     get:
       tags: [ Patients ]
-      summary: Get a patient's information.
+      summary: Get a patient's information. Patients can only access their own information.
       security:
+        - PatientSessionToken: [ ]
         - MedicSessionToken: [ ]
         - AdminSessionToken: [ ]
       responses:
@@ -427,7 +415,7 @@ paths:
                 $ref: "#/components/schemas/Error"
     patch:
       tags: [ Patients ]
-      summary: Update a patient's data.
+      summary: Update a patient's data. Patients can only update their own information.
       security:
         - PatientSessionToken: [ ]
         - MedicSessionToken: [ ]

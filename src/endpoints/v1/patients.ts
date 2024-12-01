@@ -352,30 +352,19 @@ export class PatientsEndpoint extends Endpoint {
         super("/patients");
     }
 
-    @GetMethod({ path: "/me", requiresAuthorization: TokenType.PATIENT })
-    public async getCurrentPatient(request: Request, response: Response<PatientResponse>): Promise<void> {
-        const token = request.headers.authorization!.slice(7);
-
-        const patient = await db
-            .selectFrom("patient")
-            .select("rut")
-            .where("session_token", "=", token)
-            .executeTakeFirst();
-
-        if (!patient) {
-            throw new Error(`No patient with token ${token} found`);
-        }
-
-        request.params.rut = patient.rut;
-        await this.getPatient(request as Request<{ rut: string }>, response);
-    }
-
-    @GetMethod({ path: "/:rut", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    @GetMethod({ path: "/:rut", requiresAuthorization: true })
     public async getPatient(request: Request<{ rut: string }>, response: Response<PatientResponse>): Promise<void> {
         const { rut } = request.params;
 
         if (!isValidRut(rut)) {
             this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.PATIENT && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
             return;
         }
 
