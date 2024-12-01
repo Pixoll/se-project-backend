@@ -13,158 +13,239 @@ export class PatientsEndpoint extends Endpoint {
         super("/patients");
 
         this.newPatientValidators = {
-            firstName: "required",
-            secondName: "skip",
-            firstLastName: "required",
-            secondLastName: "skip",
-            email: async (value: unknown): Promise<ValidatorResult> => {
-                const valid = !!value && typeof value === "string" && isValidEmail(value);
-
-                if (!valid) {
-                    return {
+            firstName: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "string";
+                    return valid ? {
+                        ok: true,
+                    } : {
                         ok: false,
                         status: HTTPStatus.BAD_REQUEST,
-                        message: "Invalid email.",
+                        message: `Invalid ${key}.`,
                     };
-                }
-
-                const patient = await db
-                    .selectFrom("patient")
-                    .select("rut")
-                    .where("email", "=", value)
-                    .executeTakeFirst();
-
-                return !patient ? {
+                },
+            },
+            secondName: (value, key): ValidatorResult => {
+                const valid = !value || typeof value === "string";
+                return valid ? {
                     ok: true,
                 } : {
                     ok: false,
-                    status: HTTPStatus.CONFLICT,
-                    message: `A patient with email ${value} already exists.`,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
                 };
             },
-            phone: async (value: unknown): Promise<ValidatorResult> => {
-                const valid = !!value && typeof value === "number" && isValidPhone(value);
-
-                if (!valid) {
-                    return {
+            firstLastName: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "string";
+                    return valid ? {
+                        ok: true,
+                    } : {
                         ok: false,
                         status: HTTPStatus.BAD_REQUEST,
-                        message: "Invalid phone.",
+                        message: `Invalid ${key}.`,
                     };
-                }
+                },
+            },
+            secondLastName: (value, key): ValidatorResult => {
+                const valid = !value || typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            email: {
+                required: true,
+                validator: async (value, key): Promise<ValidatorResult> => {
+                    const valid = !!value && typeof value === "string" && isValidEmail(value);
 
-                const patient = await db
-                    .selectFrom("patient")
-                    .select("rut")
-                    .where("phone", "=", value)
-                    .executeTakeFirst();
+                    if (!valid) {
+                        return {
+                            ok: false,
+                            status: HTTPStatus.BAD_REQUEST,
+                            message: `Invalid ${key}.`,
+                        };
+                    }
 
-                return !patient ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.CONFLICT,
-                    message: `A patient with phone ${value} already exists.`,
-                };
+                    const patient = await db
+                        .selectFrom("patient")
+                        .select("rut")
+                        .where("email", "=", value)
+                        .executeTakeFirst();
+
+                    return !patient ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.CONFLICT,
+                        message: `A patient with ${key} ${value} already exists.`,
+                    };
+                },
             },
-            birthDate: (value: unknown): ValidatorResult => {
-                const valid = !!value
-                    && typeof value === "string"
-                    && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
-                return valid ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid birthDate.",
-                };
+            phone: {
+                required: true,
+                validator: async (value, key): Promise<ValidatorResult> => {
+                    const valid = !!value && typeof value === "number" && isValidPhone(value);
+
+                    if (!valid) {
+                        return {
+                            ok: false,
+                            status: HTTPStatus.BAD_REQUEST,
+                            message: `Invalid ${key}.`,
+                        };
+                    }
+
+                    const patient = await db
+                        .selectFrom("patient")
+                        .select("rut")
+                        .where("phone", "=", value)
+                        .executeTakeFirst();
+
+                    return !patient ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.CONFLICT,
+                        message: `A patient with ${key} ${value} already exists.`,
+                    };
+                },
             },
-            gender: "required",
-            weight: (value: unknown): ValidatorResult => {
-                const valid = !!value && typeof value === "number" && value > 0;
-                return valid ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid weight.",
-                };
-            },
-            height: (value: unknown): ValidatorResult => {
-                const valid = !!value && typeof value === "number" && value > 0;
-                return valid ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid height.",
-                };
-            },
-            rhesusFactor: (value: unknown): ValidatorResult => {
-                const valid = !!value && typeof value === "string" && ["+", "-"].includes(value);
-                return valid ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid rhesusFactor.",
-                };
-            },
-            bloodTypeId: async (value: unknown): Promise<ValidatorResult> => {
-                if (!(value && typeof value === "number" && value > 0)) {
-                    return {
+            birthDate: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value
+                        && typeof value === "string"
+                        && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
+                    return valid ? {
+                        ok: true,
+                    } : {
                         ok: false,
                         status: HTTPStatus.BAD_REQUEST,
-                        message: "Invalid bloodTypeId.",
+                        message: `Invalid ${key}.`,
                     };
-                }
-
-                const bloodType = await db
-                    .selectFrom("blood_type")
-                    .select("id")
-                    .where("id", "=", value)
-                    .executeTakeFirst();
-
-                return bloodType ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid bloodTypeId.",
-                };
+                },
             },
-            insuranceTypeId: async (value: unknown): Promise<ValidatorResult> => {
-                if (!(value && typeof value === "number" && value > 0)) {
-                    return {
+            gender: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "string";
+                    return valid ? {
+                        ok: true,
+                    } : {
                         ok: false,
                         status: HTTPStatus.BAD_REQUEST,
-                        message: "Invalid insuranceTypeId.",
+                        message: `Invalid ${key}.`,
                     };
-                }
-
-                const insuranceType = await db
-                    .selectFrom("insurance_type")
-                    .select("id")
-                    .where("id", "=", value)
-                    .executeTakeFirst();
-
-                return insuranceType ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid insuranceTypeId.",
-                };
+                },
             },
-            password: (value: unknown): ValidatorResult => {
-                const valid = !!value && typeof value === "string" && value.length >= 8;
-                return valid ? {
-                    ok: true,
-                } : {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: "Invalid password.",
-                };
+            weight: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "number" && value > 0;
+                    return valid ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            height: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "number" && value > 0;
+                    return valid ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            rhesusFactor: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "string" && ["+", "-"].includes(value);
+                    return valid ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            bloodTypeId: {
+                required: true,
+                validator: async (value, key): Promise<ValidatorResult> => {
+                    if (!(value && typeof value === "number" && value > 0)) {
+                        return {
+                            ok: false,
+                            status: HTTPStatus.BAD_REQUEST,
+                            message: `Invalid ${key}.`,
+                        };
+                    }
+
+                    const bloodType = await db
+                        .selectFrom("blood_type")
+                        .select("id")
+                        .where("id", "=", value)
+                        .executeTakeFirst();
+
+                    return bloodType ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            insuranceTypeId: {
+                required: true,
+                validator: async (value, key): Promise<ValidatorResult> => {
+                    if (!(value && typeof value === "number" && value > 0)) {
+                        return {
+                            ok: false,
+                            status: HTTPStatus.BAD_REQUEST,
+                            message: `Invalid ${key}.`,
+                        };
+                    }
+
+                    const insuranceType = await db
+                        .selectFrom("insurance_type")
+                        .select("id")
+                        .where("id", "=", value)
+                        .executeTakeFirst();
+
+                    return insuranceType ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            password: {
+                required: true,
+                validator: (value, key): ValidatorResult => {
+                    const valid = !!value && typeof value === "string" && value.length >= 8;
+                    return valid ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
             },
         };
     }
