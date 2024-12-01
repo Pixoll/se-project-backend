@@ -20,6 +20,25 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
   schemas:
+    Appointment:
+      type: object
+      required:
+        - id
+        - date
+        - patientRut
+        - description
+        - confirmed
+      properties:
+        id:
+          type: number
+        date:
+          $ref: "#/components/schemas/Date"
+        patientRut:
+          $ref: "#/components/schemas/Rut"
+        description:
+          type: string
+        confirmed:
+          type: boolean
     BloodType:
       type: object
       properties:
@@ -354,6 +373,31 @@ components:
           $ref: "#/components/schemas/Time"
         end:
           $ref: "#/components/schemas/Time"
+    ScheduleSlotWithAppointments:
+      type: object
+      required:
+        - id
+        - day
+        - start
+        - end
+        - active
+        - appointments
+      properties:
+        id:
+          type: number
+        day:
+          type: string
+          enum: [ mo, tu, we, th, fr, sa, su ]
+        start:
+          $ref: "#/components/schemas/Time"
+        end:
+          $ref: "#/components/schemas/Time"
+        active:
+          type: boolean
+        appointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
     Specialty:
       type: object
       properties:
@@ -528,17 +572,7 @@ paths:
               schema:
                 type: array
                 items:
-                  allOf:
-                    - $ref: "#/components/schemas/ScheduleSlot"
-                    - type: object
-                      required:
-                        - id
-                        - active
-                      properties:
-                        id:
-                          type: number
-                        active:
-                          type: boolean
+                  $ref: "#/components/schemas/ScheduleSlotWithAppointments"
         400:
           description: Malformed rut.
           content:

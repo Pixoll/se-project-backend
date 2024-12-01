@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { sql } from "kysely";
-import { db, Employee, isValidEmail, isValidPhone, isValidRut, TimeSlot } from "../../db";
+import { Appointment as DBAppointment, db, Employee, isValidEmail, isValidPhone, isValidRut, TimeSlot } from "../../db";
 import { TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
@@ -446,13 +446,24 @@ export class MedicsEndpoint extends Endpoint {
 
         const schedule = await db
             .selectFrom("medic as m")
-            .innerJoin("time_slot as ts", "ts.schedule_id", "m.schedule_id")
-            .select([
-                "ts.id",
-                "ts.day",
-                "ts.start",
-                "ts.end",
-                "ts.active",
+            .innerJoin("time_slot as t", "t.schedule_id", "m.schedule_id")
+            .leftJoin("appointment as a", join =>
+                join.onRef("a.time_slot_id", "=", "t.id")
+                    .on("a.date", ">=", sql`current_date()`)
+            )
+            .select(({ ref, fn }) => [
+                "t.id",
+                "t.day",
+                "t.start",
+                "t.end",
+                "t.active",
+                sql<Appointment[]>`if(${fn.count("a.id")} > 0, json_arrayagg(json_object(
+                    "id", ${ref("a.id")},
+                    "date", ${ref("a.date")},
+                    "patientRut", ${ref("a.patient_rut")},
+                    "description", ${ref("a.description")},
+                    "confirmed", ${ref("a.confirmed")}
+                )), json_array())`.as("appointments"),
             ])
             .where("m.rut", "=", rut)
             .execute();
@@ -735,8 +746,12 @@ type MedicUpdate = Partial<SnakeToCamelRecord<Omit<Employee,
     specialtyId?: number;
 };
 
-type ScheduleSlot = Omit<TimeSlot, "schedule_id">;
+type ScheduleSlot = Omit<TimeSlot, "schedule_id"> & {
+    appointments: Appointment[];
+};
 
-type NewScheduleSlot = Omit<ScheduleSlot, "active" | "id">;
+type Appointment = SnakeToCamelRecord<Omit<DBAppointment, "time_slot_id">>;
 
-type ScheduleSlotUpdate = Partial<Omit<ScheduleSlot, "active" | "id">>;
+type NewScheduleSlot = Omit<ScheduleSlot, "active" |  "appointments" | "id">;
+
+type ScheduleSlotUpdate = Partial<NewScheduleSlot>;
