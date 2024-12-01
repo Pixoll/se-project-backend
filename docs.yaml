@@ -139,6 +139,28 @@ components:
           type: string
         specialty:
           type: string
+    MedicUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        secondName:
+          type: string
+        firstLastName:
+          type: string
+        secondLastName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+        specialtyId:
+          type: number
+          minimum: 1
     NewPatient:
       type: object
       required:
@@ -444,6 +466,42 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         404:
           description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [ Medics ]
+      summary: Update a medic's data. Medics can only update their own information.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicUpdate"
+      responses:
+        204:
+          description: Successfully updated medic.
+        304:
+          description: Medic was not modified.
+        400:
+          description: Malformed rut or medic data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Employee with that email or phone already exists.
           content:
             application/json:
               schema:

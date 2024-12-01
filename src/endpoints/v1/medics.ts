@@ -1,12 +1,205 @@
 import { Request, Response } from "express";
 import { sql } from "kysely";
-import { db, isValidRut, TimeSlot } from "../../db";
+import { db, Employee, isValidEmail, isValidPhone, isValidRut, TimeSlot } from "../../db";
 import { TokenType } from "../../tokens";
+import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
 import { validate, Validator, ValidatorResult } from "../validator";
 
 export class MedicsEndpoint extends Endpoint {
     private static readonly DAYS = new Set(["mo", "tu", "we", "th", "fr", "sa", "su"]);
+
+    private static readonly MEDIC_UPDATE_VALIDATORS = {
+        firstName: (value, key): ValidatorResult => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !!value && typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        secondName: (value, key): ValidatorResult => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !value || typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        firstLastName: (value, key): ValidatorResult => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !!value && typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        secondLastName: (value, key): ValidatorResult => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !value || typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        email: async (value, key): Promise<ValidatorResult> => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !!value && typeof value === "string" && isValidEmail(value);
+
+            if (!valid) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            }
+
+            const employee = await db
+                .selectFrom("employee")
+                .select("rut")
+                .where("email", "=", value)
+                .executeTakeFirst();
+
+            return !employee ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.CONFLICT,
+                message: `An employee with ${key} ${value} already exists.`,
+            };
+        },
+        phone: async (value, key): Promise<ValidatorResult> => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !!value && typeof value === "number" && isValidPhone(value);
+
+            if (!valid) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            }
+
+            const employee = await db
+                .selectFrom("employee")
+                .select("rut")
+                .where("phone", "=", value)
+                .executeTakeFirst();
+
+            return !employee ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.CONFLICT,
+                message: `An employee with ${key} ${value} already exists.`,
+            };
+        },
+        birthDate: (value, key): ValidatorResult => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !!value
+                && typeof value === "string"
+                && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        gender: (value, key): ValidatorResult => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            const valid = !!value && typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        specialtyId: async (value, key): Promise<ValidatorResult> => {
+            if (typeof value === "undefined") {
+                return {
+                    ok: true,
+                };
+            }
+
+            if (!(value && typeof value === "number" && value > 0)) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            }
+
+            const specialty = await db
+                .selectFrom("specialty")
+                .select("id")
+                .where("id", "=", value)
+                .executeTakeFirst();
+
+            return specialty ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+    } as const satisfies Record<keyof MedicUpdate, Validator>;
 
     private static readonly NEW_SCHEDULE_SLOT_VALIDATORS = {
         day: {
@@ -142,6 +335,86 @@ export class MedicsEndpoint extends Endpoint {
         }
 
         this.sendOk(response, medic);
+    }
+
+    @PatchMethod({ path: "/:rut", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    public async updateMedic(request: Request<{ rut: string }, unknown, MedicUpdate>, response: Response): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const medic = await db
+            .selectFrom("medic")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!medic) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Medic ${rut} does not exist.`);
+            return;
+        }
+
+        const validationResult = await validate(request.body, MedicsEndpoint.MEDIC_UPDATE_VALIDATORS);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
+            return;
+        }
+
+        if (Object.keys(validationResult.value).length === 0) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
+        const employeeUpdate = {
+            first_name: validationResult.value.firstName,
+            second_name: validationResult.value.secondName || undefined,
+            first_last_name: validationResult.value.firstLastName,
+            second_last_name: validationResult.value.secondLastName || undefined,
+            email: validationResult.value.email,
+            phone: validationResult.value.phone,
+            birth_date: validationResult.value.birthDate,
+            gender: validationResult.value.gender,
+        };
+
+        const { specialtyId } = validationResult.value;
+
+        const employeeUpdateResult = await db
+            .updateTable("employee")
+            .set(employeeUpdate)
+            .where("rut", "=", rut)
+            .execute();
+
+        let updated = (employeeUpdateResult[0].numChangedRows ?? 0n) > 0n;
+
+        if (specialtyId) {
+            const medicUpdateResult = await db
+                .updateTable("medic")
+                .set({
+                    specialty_id: specialtyId,
+                })
+                .where("rut", "=", rut)
+                .execute();
+
+            updated = (medicUpdateResult[0].numChangedRows ?? 0n) > 0n;
+        }
+
+        if (!updated) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
@@ -450,6 +723,16 @@ type Medic = {
     birthDate: string;
     gender: string;
     specialty: string;
+};
+
+type MedicUpdate = Partial<SnakeToCamelRecord<Omit<Employee,
+    | "rut"
+    | "type"
+    | "password"
+    | "salt"
+    | "session_token"
+>>> & {
+    specialtyId?: number;
 };
 
 type ScheduleSlot = Omit<TimeSlot, "schedule_id">;
