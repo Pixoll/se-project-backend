@@ -177,29 +177,14 @@ components:
         name:
           type: string
     Medic:
-      type: object
-      required:
-        - fullName
-        - email
-        - phone
-        - birthDate
-        - gender
-        - specialty
-      properties:
-        rut:
-          type: string
-        fullName:
-          type: string
-        email:
-          $ref: "#/components/schemas/Email"
-        phone:
-          $ref: "#/components/schemas/Phone"
-        birthDate:
-          $ref: "#/components/schemas/Date"
-        gender:
-          type: string
-        specialty:
-          type: string
+      allOf:
+        - $ref: "#/components/schemas/Employee"
+        - type: object
+          required:
+            - specialty
+          properties:
+            specialty:
+              type: string
     MedicUpdate:
       type: object
       properties:

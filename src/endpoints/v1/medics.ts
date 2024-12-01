@@ -267,15 +267,13 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @GetMethod()
-    public async getAllMedics(request: Request, response: Response<Medic[]>): Promise<void> {
-        const isEmployeeSession = (this.getToken(request)?.type ?? TokenType.PATIENT) !== TokenType.PATIENT;
-
+    public async getAllMedics(_request: Request, response: Response<Medic[]>): Promise<void> {
         const medics = await db
             .selectFrom("medic as m")
             .innerJoin("employee as e", "e.rut", "m.rut")
             .innerJoin("specialty as sp", "sp.id", "m.specialty_id")
             .select(({ ref }) => [
-                ...(isEmployeeSession ? ["e.rut"] as const : []),
+                "e.rut",
                 sql<string>`concat(
                     ${ref("e.first_name")}, " ",
                     ifnull(concat(${ref("e.second_name")}, " "), ""),
@@ -769,7 +767,7 @@ export class MedicsEndpoint extends Endpoint {
 }
 
 type Medic = {
-    rut?: string;
+    rut: string;
     fullName: string;
     email: string;
     phone: number;
