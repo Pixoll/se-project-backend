@@ -669,9 +669,6 @@ paths:
     get:
       tags: [ Medics ]
       summary: Get a medic by their rut.
-      security:
-        - MedicSessionToken: [ ]
-        - AdminSessionToken: [ ]
       responses:
         200:
           description: Successfully retrieved the medic's information.

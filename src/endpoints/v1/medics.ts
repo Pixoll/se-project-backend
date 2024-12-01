@@ -291,7 +291,7 @@ export class MedicsEndpoint extends Endpoint {
         this.sendOk(response, medics);
     }
 
-    @GetMethod({ path: "/:rut", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    @GetMethod()
     public async getMedic(request: Request<{ rut: string }>, response: Response<Medic>): Promise<void> {
         const { rut } = request.params;
 
