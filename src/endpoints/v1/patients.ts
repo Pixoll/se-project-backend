@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
 import { Request, Response } from "express";
-import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, MedicalRecord, NewPatient, Patient } from "../../db";
+import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, NewPatient, Patient } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
-import { NonNullableRecord, SnakeToCamelRecord } from "../../types";
+import { MapNullToUndefined, SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
 import { validate, Validator, ValidatorResult } from "../validator";
 
@@ -229,6 +229,46 @@ export class PatientsEndpoint extends Endpoint {
                 };
             },
         },
+        allergiesHistory: (value, key): ValidatorResult => {
+            const valid = !value || typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        morbidityHistory: (value, key): ValidatorResult => {
+            const valid = !value || typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        surgicalHistory: (value, key): ValidatorResult => {
+            const valid = !value || typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
+        medications: (value, key): ValidatorResult => {
+            const valid = !value || typeof value === "string";
+            return valid ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.BAD_REQUEST,
+                message: `Invalid ${key}.`,
+            };
+        },
         password: {
             required: true,
             validator: (value, key): ValidatorResult => {
@@ -302,6 +342,10 @@ export class PatientsEndpoint extends Endpoint {
                 ok: true,
             } : PatientsEndpoint.NEW_PATIENT_VALIDATORS.insuranceTypeId.validator(value, key);
         },
+        allergiesHistory: PatientsEndpoint.NEW_PATIENT_VALIDATORS.allergiesHistory,
+        morbidityHistory: PatientsEndpoint.NEW_PATIENT_VALIDATORS.morbidityHistory,
+        surgicalHistory: PatientsEndpoint.NEW_PATIENT_VALIDATORS.surgicalHistory,
+        medications: PatientsEndpoint.NEW_PATIENT_VALIDATORS.medications,
     } as const satisfies Record<keyof PatientUpdateBody, Validator>;
 
     public constructor() {
@@ -339,7 +383,6 @@ export class PatientsEndpoint extends Endpoint {
             .selectFrom("patient as p")
             .innerJoin("blood_type as bt", "bt.id", "p.blood_type_id")
             .innerJoin("insurance_type as it", "it.id", "p.insurance_type_id")
-            .leftJoin("medical_record as mr", "mr.patient_rut", "p.rut")
             .select([
                 "p.first_name as firstName",
                 "p.second_name as secondName",
@@ -354,10 +397,10 @@ export class PatientsEndpoint extends Endpoint {
                 "p.rhesus_factor as rhesusFactor",
                 "bt.name as bloodType",
                 "it.name as insuranceType",
-                "mr.allergies_history as allergiesHistory",
-                "mr.morbidity_history as morbidityHistory",
-                "mr.surgical_history as surgicalHistory",
-                "mr.medications",
+                "p.allergies_history as allergiesHistory",
+                "p.morbidity_history as morbidityHistory",
+                "p.surgical_history as surgicalHistory",
+                "p.medications",
             ])
             .where("p.rut", "=", rut)
             .executeTakeFirst();
@@ -367,7 +410,7 @@ export class PatientsEndpoint extends Endpoint {
             return;
         }
 
-        this.sendOk(response, {
+        const result: PatientResponse = {
             firstName: patient.firstName,
             ...patient.secondName && { secondName: patient.secondName },
             firstLastName: patient.firstLastName,
@@ -381,13 +424,13 @@ export class PatientsEndpoint extends Endpoint {
             rhesusFactor: patient.rhesusFactor,
             bloodType: patient.bloodType,
             insuranceType: patient.insuranceType,
-            medicalRecord: {
-                ...patient.allergiesHistory && { allergiesHistory: patient.allergiesHistory },
-                ...patient.morbidityHistory && { morbidityHistory: patient.morbidityHistory },
-                ...patient.surgicalHistory && { surgicalHistory: patient.surgicalHistory },
-                ...patient.medications && { medications: patient.medications },
-            },
-        });
+            ...patient.allergiesHistory && { allergiesHistory: patient.allergiesHistory },
+            ...patient.morbidityHistory && { morbidityHistory: patient.morbidityHistory },
+            ...patient.surgicalHistory && { surgicalHistory: patient.surgicalHistory },
+            ...patient.medications && { medications: patient.medications },
+        };
+
+        this.sendOk(response, result);
     }
 
     @PostMethod("/:rut")
@@ -599,19 +642,14 @@ type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "rut" | "salt" | "session
 
 type PatientUpdateBody = Partial<Omit<PatientBody, "password">>;
 
-type PatientResponse = SnakeToCamelRecord<Omit<Patient,
+type PatientResponse = SnakeToCamelRecord<Omit<MapNullToUndefined<Patient>,
     | "blood_type_id"
     | "insurance_type_id"
     | "password"
     | "rut"
     | "salt"
-    | "second_name"
-    | "second_last_name"
     | "session_token"
 >> & {
-    secondName?: string;
-    secondLastName?: string;
     bloodType: string;
     insuranceType: string;
-    medicalRecord: Partial<NonNullableRecord<SnakeToCamelRecord<Omit<MedicalRecord, "patient_rut">>>>;
 };

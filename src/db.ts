@@ -312,38 +312,6 @@ export type NewMedic = Insertable<MedicTable>;
 export type MedicUpdate = Updateable<MedicTable>;
 
 /**
- * - Table name: `medical_record`
- * - Primary key: `(patient_rut)`
- */
-export type MedicalRecordTable = {
-    /**
-     * - SQL: `patient_rut varchar(11) primary key`
-     * - Foreign key: `patient.rut`
-     */
-    patient_rut: string;
-    /**
-     * - SQL: `allergies_history varchar(1000)`
-     */
-    allergies_history: string | null;
-    /**
-     * - SQL: `morbidity_history varchar(1000)`
-     */
-    morbidity_history: string | null;
-    /**
-     * - SQL: `surgical_history varchar(1000)`
-     */
-    surgical_history: string | null;
-    /**
-     * - SQL: `medications varchar(1000)`
-     */
-    medications: string | null;
-};
-
-export type MedicalRecord = Selectable<MedicalRecordTable>;
-export type NewMedicalRecord = Insertable<MedicalRecordTable>;
-export type MedicalRecordUpdate = Updateable<MedicalRecordTable>;
-
-/**
  * - Table name: `patient`
  * - Primary key: `(rut)`
  * - Indexes:
@@ -411,6 +379,22 @@ export type PatientTable = {
      * - Foreign key: `insurance_type.id`
      */
     insurance_type_id: number;
+    /**
+     * - SQL: `allergies_history varchar(1000) default null`
+     */
+    allergies_history: Generated<string> | null;
+    /**
+     * - SQL: `morbidity_history varchar(1000) default null`
+     */
+    morbidity_history: Generated<string> | null;
+    /**
+     * - SQL: `surgical_history varchar(1000) default null`
+     */
+    surgical_history: Generated<string> | null;
+    /**
+     * - SQL: `medications varchar(1000) default null`
+     */
+    medications: Generated<string> | null;
     /**
      * - SQL: `password char(86) not null check (password != "")`
      */
@@ -501,7 +485,6 @@ export type DB = {
     employee: EmployeeTable;
     insurance_type: InsuranceTypeTable;
     medic: MedicTable;
-    medical_record: MedicalRecordTable;
     patient: PatientTable;
     schedule: ScheduleTable;
     specialty: SpecialtyTable;

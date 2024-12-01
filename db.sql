@@ -90,6 +90,10 @@ create table patient (
     rhesus_factor enum("+", "-") not null,
     blood_type_id int unsigned not null,
     insurance_type_id int unsigned not null,
+    allergies_history varchar(1000) default null,
+    morbidity_history varchar(1000) default null,
+    surgical_history varchar(1000) default null,
+    medications varchar(1000) default null,
     password char(86) not null check (password != ""),
     salt char(43) not null check (salt != ""),
     session_token char(86) unique check (session_token is null or session_token != ""),
@@ -109,15 +113,6 @@ begin
     end if;
 end; $$
 delimiter ;
-
-create table medical_record (
-    patient_rut varchar(11) primary key,
-    allergies_history varchar(1000),
-    morbidity_history varchar(1000),
-    surgical_history varchar(1000),
-    medications varchar(1000),
-    foreign key (patient_rut) references patient(rut)
-);
 
 create table employee (
     rut varchar(11) primary key,
@@ -295,9 +290,9 @@ insert into specialty (name) values
 
 insert into patient values
     -- password: 1234567890
-    ("1000000-9", "Name 1", "Name 2", "Surname 1", "Surname 2", "my@email.com", 923456789, "2000-01-01", "Male", 70, 180, "+", 1, 1, "EIlbPX94ABnBGXRX2pFGfbdGr_iGT6xKHa_kFmfY9T4XZpbtd441ita68T8-eTdQaFhzdGPkoSPTk-lAJ0ODaA", "AIoVry0_yskEUbR_B4QnWLBmd5pzn_f2rs-SEm9yAQs", null),
+    ("1000000-9", "Name 1", "Name 2", "Surname 1", "Surname 2", "my@email.com", 923456789, "2000-01-01", "Male", 70, 180, "+", 1, 1, null, null, null, null, "EIlbPX94ABnBGXRX2pFGfbdGr_iGT6xKHa_kFmfY9T4XZpbtd441ita68T8-eTdQaFhzdGPkoSPTk-lAJ0ODaA", "AIoVry0_yskEUbR_B4QnWLBmd5pzn_f2rs-SEm9yAQs", null),
     -- password: qwertyuiop
-    ("2000000-7", "Name 3", "Name 4", "Surname 3", "Surname 4", "an@email.com", 987654321, "2002-02-20", "Female", 60, 175, "-", 2, 2, "UvnSFma7X242DgRC45-qo-8_ZMR-wJxWlceflmpXa2vFxHwywMpIMSE6H7AYJw7RWJieFo5en1MDeAI6G2wMSA", "s7ujjgSgJItN6HP6wohuaPCwxyuIKRZpCfxwx5-lL2Q", null);
+    ("2000000-7", "Name 3", "Name 4", "Surname 3", "Surname 4", "an@email.com", 987654321, "2002-02-20", "Female", 60, 175, "-", 2, 2, null, null, null, null, "UvnSFma7X242DgRC45-qo-8_ZMR-wJxWlceflmpXa2vFxHwywMpIMSE6H7AYJw7RWJieFo5en1MDeAI6G2wMSA", "s7ujjgSgJItN6HP6wohuaPCwxyuIKRZpCfxwx5-lL2Q", null);
 
 insert into schedule values
     (null),

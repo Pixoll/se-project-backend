@@ -1,5 +1,7 @@
-export type NonNullableRecord<T> = {
-    [K in keyof T]: NonNullable<T[K]>;
+export type MapNullToUndefined<T> = {
+    [K in keyof T as null extends T[K] ? never : K]: T[K];
+} & {
+    [K in keyof T as null extends T[K] ? K : never]?: NonNullable<T[K]>;
 };
 
 export type SnakeToCamelRecord<T> = {
