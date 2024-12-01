@@ -5,6 +5,7 @@ info:
 servers:
   - url: /api/v1
 tags:
+  - name: Admins
   - name: Clinic
   - name: Patients
   - name: Ping
@@ -115,6 +116,47 @@ components:
     Email:
       type: string
       pattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
+    Employee:
+      type: object
+      required:
+        - rut
+        - fullName
+        - email
+        - phone
+        - birthDate
+        - gender
+      properties:
+        rut:
+          type: string
+        fullName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
+    EmployeeUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        secondName:
+          type: string
+        firstLastName:
+          type: string
+        secondLastName:
+          type: string
+        email:
+          $ref: "#/components/schemas/Email"
+        phone:
+          $ref: "#/components/schemas/Phone"
+        birthDate:
+          $ref: "#/components/schemas/Date"
+        gender:
+          type: string
     Error:
       type: object
       required:
@@ -436,6 +478,144 @@ components:
       scheme: bearer
       description: The admin's session token.
 paths:
+  /admins:
+    get:
+      tags: [ Admins ]
+      summary: Get a list of all admins.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved admins list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+  /admins/{rut}:
+    get:
+      tags: [ Admins ]
+      summary: Get an admin by their rut.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the admin's information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        400:
+          description: Malformed rut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Admin does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [ Admins ]
+      summary: Update an admin's data.
+      security:
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdate"
+      responses:
+        204:
+          description: Successfully updated admin.
+        304:
+          description: Admin was not modified.
+        400:
+          description: Malformed rut or admin data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Admin does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Employee with that email or phone already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The admin's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /admins/{rut}/session:
+    post:
+      tags: [ Admins ]
+      summary: Generate a new session token for the selected admin.
+      requestBody:
+        description: The admin's password.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Password"
+      responses:
+        201:
+          description: Session token successfully generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionToken"
+        400:
+          description: Password missing in request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          description: Incorrect password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: Admin does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [ Admins ]
+      summary: Revoke the admin's session token.
+      security:
+        - AdminSessionToken: [ ]
+      responses:
+        204:
+          description: Token successfully revoked.
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+    parameters:
+      - name: rut
+        in: path
+        description: The admin's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
   /blood_types:
     get:
       tags: [ Misc ]

@@ -1,3 +1,4 @@
+export { AdminsEndpoint } from "./admins";
 export { BloodTypesEndpoint } from "./bloodTypes";
 export { ClinicEndpoint } from "./clinic";
 export { InsuranceTypesEndpoint } from "./insuranceTypes";
