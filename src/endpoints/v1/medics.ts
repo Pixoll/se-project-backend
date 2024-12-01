@@ -294,7 +294,7 @@ export class MedicsEndpoint extends Endpoint {
     }
 
     @GetMethod({ path: "/:rut", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
-    public async getMedic(request: Request<{ rut: string }>, response: Response<Omit<Medic, "rut">>): Promise<void> {
+    public async getMedic(request: Request<{ rut: string }>, response: Response<Medic>): Promise<void> {
         const { rut } = request.params;
 
         if (!isValidRut(rut)) {
@@ -308,6 +308,7 @@ export class MedicsEndpoint extends Endpoint {
             .innerJoin("specialty as sp", "sp.id", "m.specialty_id")
             .innerJoin("time_slot as ts", "ts.schedule_id", "m.schedule_id")
             .select(({ ref }) => [
+                "e.rut",
                 sql<string>`concat(
                     ${ref("e.first_name")}, " ",
                     ifnull(concat(${ref("e.second_name")}, " "), ""),
