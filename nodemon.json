@@ -1,6 +1,7 @@
 {
   "watch": [
-    "src"
+    "src",
+    "docs.yaml"
   ],
   "ext": "ts",
   "exec": "ts-node ./src/index.ts"
