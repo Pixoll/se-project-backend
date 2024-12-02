@@ -18,7 +18,7 @@ import { Validator } from "../validator";
 
 export class MedicsEndpoint extends Endpoint {
     private readonly medicUpdateValidator: Validator<MedicUpdate>;
-    private readonly newScheduleSlotValidator: Validator<NewScheduleSlot>;
+    private readonly newScheduleSlotValidator: Validator<NewScheduleSlot, [scheduleId: number]>;
     private readonly scheduleSlotUpdateValidator: Validator<ScheduleSlotUpdate>;
 
     public constructor() {
@@ -218,7 +218,7 @@ export class MedicsEndpoint extends Endpoint {
             },
         });
 
-        this.newScheduleSlotValidator = new Validator<NewScheduleSlot>({
+        this.newScheduleSlotValidator = new Validator<NewScheduleSlot, [scheduleId: number]>({
             day: {
                 required: true,
                 validate: (value, key) => {
@@ -257,6 +257,33 @@ export class MedicsEndpoint extends Endpoint {
                         message: `Invalid ${key}.`,
                     };
                 },
+            },
+            global: async ({ day, start, end }, scheduleId) => {
+                const doesOverlap = await db
+                    .selectFrom("time_slot")
+                    .select("id")
+                    .where(({ eb, and, or }) => and([
+                        eb("schedule_id", "=", scheduleId),
+                        eb("day", "=", day),
+                        eb("active", "=", true),
+                        or([
+                            eb("start", "=", start),
+                            eb("end", "=", end),
+                            eb("start", "<", start).and("end", ">", start),
+                            eb("start", "<", end).and("end", ">", end),
+                            eb("start", ">", start).and("end", "<", end),
+                            eb("start", "<", start).and("end", ">", end),
+                        ]),
+                    ]))
+                    .executeTakeFirst();
+
+                return !doesOverlap ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: "Time slot overlaps with another.",
+                };
             },
         });
 
@@ -558,7 +585,7 @@ export class MedicsEndpoint extends Endpoint {
             return;
         }
 
-        const validationResult = await this.newScheduleSlotValidator.validate(request.body);
+        const validationResult = await this.newScheduleSlotValidator.validate(request.body, scheduleId);
 
         if (!validationResult.ok) {
             this.sendError(response, validationResult.status, validationResult.message);
@@ -566,29 +593,6 @@ export class MedicsEndpoint extends Endpoint {
         }
 
         const { day, start, end } = validationResult.value;
-
-        const doesOverlap = await db
-            .selectFrom("time_slot")
-            .select("id")
-            .where(({ eb, and, or }) => and([
-                eb("schedule_id", "=", scheduleId),
-                eb("day", "=", day),
-                eb("active", "=", true),
-                or([
-                    eb("start", "=", start),
-                    eb("end", "=", end),
-                    eb("start", "<", start).and("end", ">", start),
-                    eb("start", "<", end).and("end", ">", end),
-                    eb("start", ">", start).and("end", "<", end),
-                    eb("start", "<", start).and("end", ">", end),
-                ]),
-            ]))
-            .executeTakeFirst();
-
-        if (doesOverlap) {
-            this.sendError(response, HTTPStatus.CONFLICT, "Time slot overlaps with another.");
-            return;
-        }
 
         await db
             .insertInto("time_slot")
