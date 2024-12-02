@@ -914,7 +914,7 @@ export class PatientsEndpoint extends Endpoint {
 
         const token = this.getToken(request)!;
 
-        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+        if (token.type === TokenType.PATIENT && token.rut !== rut) {
             this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
             return;
         }
