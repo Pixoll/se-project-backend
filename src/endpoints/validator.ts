@@ -57,7 +57,7 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
 }
 
 type ValidatorObject<T extends Record<string, any>, IncludeFunctionEntries extends boolean = true> = {
-    [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction<K> | ValidatorEntry<K> : ValidatorEntry<K>;
+    [K in keyof T]-?: IncludeFunctionEntries extends true ? ValidatorFunction<K> | ValidatorEntry<K> : ValidatorEntry<K>;
 };
 
 type ValidatorEntry<K> = {
