@@ -5,7 +5,7 @@ import { db, Employee, isValidEmail, isValidPhone, isValidRut } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
-import { validate, Validator, ValidatorResult } from "../validator";
+import { validate, ValidatorObject, ValidatorResult } from "../validator";
 
 export class AdminsEndpoint extends Endpoint {
     private static readonly ADMIN_UPDATE_VALIDATORS = {
@@ -169,7 +169,7 @@ export class AdminsEndpoint extends Endpoint {
                 message: `Invalid ${key}.`,
             };
         },
-    } as const satisfies Record<keyof AdminUpdate, Validator>;
+    } as const satisfies ValidatorObject<AdminUpdate>;
 
     public constructor() {
         super("/admins");

@@ -10,12 +10,12 @@ import {
     isValidRut,
     NewPatient,
     Patient,
-    TimeSlot
+    TimeSlot,
 } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { MapNullToUndefined, SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
-import { validate, Validator, ValidatorResult } from "../validator";
+import { validate, ValidatorObject, ValidatorResult } from "../validator";
 
 export class PatientsEndpoint extends Endpoint {
     private static readonly NEW_PATIENT_VALIDATORS = {
@@ -293,7 +293,7 @@ export class PatientsEndpoint extends Endpoint {
                 };
             },
         },
-    } as const satisfies Record<keyof PatientBody, Validator>;
+    } as const satisfies ValidatorObject<PatientBody>;
 
     private static readonly PATIENT_UPDATE_VALIDATORS = {
         firstName: (value, key): ValidatorResult => {
@@ -357,7 +357,7 @@ export class PatientsEndpoint extends Endpoint {
         morbidityHistory: PatientsEndpoint.NEW_PATIENT_VALIDATORS.morbidityHistory,
         surgicalHistory: PatientsEndpoint.NEW_PATIENT_VALIDATORS.surgicalHistory,
         medications: PatientsEndpoint.NEW_PATIENT_VALIDATORS.medications,
-    } as const satisfies Record<keyof PatientUpdateBody, Validator>;
+    } as const satisfies ValidatorObject<PatientUpdateBody>;
 
     public constructor() {
         super("/patients");

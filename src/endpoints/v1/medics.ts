@@ -9,12 +9,12 @@ import {
     isValidEmail,
     isValidPhone,
     isValidRut,
-    TimeSlot
+    TimeSlot,
 } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
-import { validate, Validator, ValidatorResult } from "../validator";
+import { validate, ValidatorObject, ValidatorResult } from "../validator";
 
 export class MedicsEndpoint extends Endpoint {
     private static readonly DAYS = new Set(["mo", "tu", "we", "th", "fr", "sa", "su"]);
@@ -209,7 +209,7 @@ export class MedicsEndpoint extends Endpoint {
                 message: `Invalid ${key}.`,
             };
         },
-    } as const satisfies Record<keyof MedicUpdate, Validator>;
+    } as const satisfies ValidatorObject<MedicUpdate>;
 
     private static readonly NEW_SCHEDULE_SLOT_VALIDATORS = {
         day: {
@@ -251,7 +251,7 @@ export class MedicsEndpoint extends Endpoint {
                 };
             },
         },
-    } as const satisfies Record<keyof NewScheduleSlot, Validator>;
+    } as const satisfies ValidatorObject<NewScheduleSlot>;
 
     private static readonly SCHEDULE_SLOT_UPDATE_VALIDATORS = {
         day: (value, key): ValidatorResult => {
@@ -269,7 +269,7 @@ export class MedicsEndpoint extends Endpoint {
                 ok: true,
             } : MedicsEndpoint.NEW_SCHEDULE_SLOT_VALIDATORS.end.validator(value, key);
         },
-    } as const satisfies Record<keyof ScheduleSlotUpdate, Validator>;
+    } as const satisfies ValidatorObject<ScheduleSlotUpdate>;
 
     public constructor() {
         super("/medics");
@@ -862,6 +862,6 @@ type ScheduleSlot = Omit<TimeSlot, "schedule_id"> & {
 
 type ScheduleSlotAppointment = SnakeToCamelRecord<Omit<DBAppointment, "time_slot_id">>;
 
-type NewScheduleSlot = Omit<ScheduleSlot, "active" |  "appointments" | "id">;
+type NewScheduleSlot = Omit<ScheduleSlot, "active" | "appointments" | "id">;
 
 type ScheduleSlotUpdate = Partial<NewScheduleSlot>;

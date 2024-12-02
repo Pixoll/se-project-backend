@@ -1,6 +1,13 @@
 import { HTTPStatus } from "./base";
 
-export type Validator = ValidatorFunction | {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ValidatorObject<T extends Record<string, any>> = {
+    [K in keyof T]: Validator;
+} & {
+    global?: (object: T) => ValidatorResult | Promise<ValidatorResult>;
+};
+
+type Validator = ValidatorFunction | {
     required: true;
     validator: ValidatorFunction;
 };
@@ -22,7 +29,11 @@ type ValidationError = {
     message: string;
 };
 
-export async function validate<T>(target: T, validators: Record<keyof T & string, Validator>): Promise<ValidationResult<T>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function validate<T extends Record<string, any>>(
+    target: T,
+    validators: ValidatorObject<T>
+): Promise<ValidationResult<T>> {
     // @ts-expect-error: if it's valid, it will be of type T
     const result: T = {};
 
