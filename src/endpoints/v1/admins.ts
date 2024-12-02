@@ -5,174 +5,176 @@ import { db, Employee, isValidEmail, isValidPhone, isValidRut } from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
-import { validate, ValidatorObject, ValidatorResult } from "../validator";
+import { Validator } from "../validator";
 
 export class AdminsEndpoint extends Endpoint {
-    private static readonly ADMIN_UPDATE_VALIDATORS = {
-        firstName: (value, key): ValidatorResult => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !!value && typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        secondName: (value, key): ValidatorResult => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !value || typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        firstLastName: (value, key): ValidatorResult => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !!value && typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        secondLastName: (value, key): ValidatorResult => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !value || typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        email: async (value, key): Promise<ValidatorResult> => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !!value && typeof value === "string" && isValidEmail(value);
-
-            if (!valid) {
-                return {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: `Invalid ${key}.`,
-                };
-            }
-
-            const employee = await db
-                .selectFrom("employee")
-                .select("rut")
-                .where("email", "=", value)
-                .executeTakeFirst();
-
-            return !employee ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.CONFLICT,
-                message: `An employee with ${key} ${value} already exists.`,
-            };
-        },
-        phone: async (value, key): Promise<ValidatorResult> => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !!value && typeof value === "number" && isValidPhone(value);
-
-            if (!valid) {
-                return {
-                    ok: false,
-                    status: HTTPStatus.BAD_REQUEST,
-                    message: `Invalid ${key}.`,
-                };
-            }
-
-            const employee = await db
-                .selectFrom("employee")
-                .select("rut")
-                .where("phone", "=", value)
-                .executeTakeFirst();
-
-            return !employee ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.CONFLICT,
-                message: `An employee with ${key} ${value} already exists.`,
-            };
-        },
-        birthDate: (value, key): ValidatorResult => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !!value
-                && typeof value === "string"
-                && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        gender: (value, key): ValidatorResult => {
-            if (typeof value === "undefined") {
-                return {
-                    ok: true,
-                };
-            }
-
-            const valid = !!value && typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-    } as const satisfies ValidatorObject<AdminUpdate>;
+    private readonly adminUpdateValidator: Validator<AdminUpdate>;
 
     public constructor() {
         super("/admins");
+
+        this.adminUpdateValidator = new Validator<AdminUpdate>({
+            firstName: (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !!value && typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            secondName: (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !value || typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            firstLastName: (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !!value && typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            secondLastName: (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !value || typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            email: async (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !!value && typeof value === "string" && isValidEmail(value);
+
+                if (!valid) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                }
+
+                const employee = await db
+                    .selectFrom("employee")
+                    .select("rut")
+                    .where("email", "=", value)
+                    .executeTakeFirst();
+
+                return !employee ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: `An employee with ${key} ${value} already exists.`,
+                };
+            },
+            phone: async (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !!value && typeof value === "number" && isValidPhone(value);
+
+                if (!valid) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                }
+
+                const employee = await db
+                    .selectFrom("employee")
+                    .select("rut")
+                    .where("phone", "=", value)
+                    .executeTakeFirst();
+
+                return !employee ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: `An employee with ${key} ${value} already exists.`,
+                };
+            },
+            birthDate: (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !!value
+                    && typeof value === "string"
+                    && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            gender: (value, key) => {
+                if (typeof value === "undefined") {
+                    return {
+                        ok: true,
+                    };
+                }
+
+                const valid = !!value && typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+        });
     }
 
     @GetMethod({ requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
@@ -260,7 +262,7 @@ export class AdminsEndpoint extends Endpoint {
             return;
         }
 
-        const validationResult = await validate(request.body, AdminsEndpoint.ADMIN_UPDATE_VALIDATORS);
+        const validationResult = await this.adminUpdateValidator.validate(request.body);
 
         if (!validationResult.ok) {
             this.sendError(response, validationResult.status, validationResult.message);

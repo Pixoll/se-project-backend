@@ -3,78 +3,80 @@ import { Clinic, db, isValidEmail, isValidPhone } from "../../db";
 import { TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { Endpoint, GetMethod, HTTPStatus, PatchMethod } from "../base";
-import { validate, ValidatorResult, ValidatorObject } from "../validator";
+import { Validator } from "../validator";
 
 export class ClinicEndpoint extends Endpoint {
-    private static readonly CLINIC_UPDATE_VALIDATORS = {
-        name: async (value, key): Promise<ValidatorResult> => {
-            const valid = typeof value === "undefined" || typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        email: async (value, key): Promise<ValidatorResult> => {
-            const valid = typeof value === "undefined" || (typeof value === "string" && isValidEmail(value));
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        phone: async (value, key): Promise<ValidatorResult> => {
-            const valid = typeof value === "undefined" || (typeof value === "number" && isValidPhone(value));
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        address: async (value, key): Promise<ValidatorResult> => {
-            const valid = typeof value === "undefined" || typeof value === "string";
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        openingTime: async (value, key): Promise<ValidatorResult> => {
-            const valid = typeof value === "undefined" || (
-                typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value)
-            );
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-        closingTime: async (value, key): Promise<ValidatorResult> => {
-            const valid = typeof value === "undefined" || (
-                typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value)
-            );
-            return valid ? {
-                ok: true,
-            } : {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Invalid ${key}.`,
-            };
-        },
-    } as const satisfies ValidatorObject<ClinicObject>;
+    private clinicUpdateValidator: Validator<Partial<ClinicObject>>;
 
     public constructor() {
         super("/clinic");
+
+        this.clinicUpdateValidator = new Validator<Partial<ClinicObject>>({
+            name: async (value, key) => {
+                const valid = typeof value === "undefined" || typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            email: async (value, key) => {
+                const valid = typeof value === "undefined" || (typeof value === "string" && isValidEmail(value));
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            phone: async (value, key) => {
+                const valid = typeof value === "undefined" || (typeof value === "number" && isValidPhone(value));
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            address: async (value, key) => {
+                const valid = typeof value === "undefined" || typeof value === "string";
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            openingTime: async (value, key) => {
+                const valid = typeof value === "undefined" || (
+                    typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value)
+                );
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+            closingTime: async (value, key) => {
+                const valid = typeof value === "undefined" || (
+                    typeof value === "string" && /^[0-2][0-9]:[0-5][0-9]$/.test(value)
+                );
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
+            },
+        });
     }
 
     @GetMethod()
@@ -100,7 +102,7 @@ export class ClinicEndpoint extends Endpoint {
 
     @PatchMethod({ requiresAuthorization: TokenType.ADMIN })
     public async updateClinic(request: Request<unknown, unknown, Partial<ClinicObject>>, response: Response): Promise<void> {
-        const validationResult = await validate(request.body, ClinicEndpoint.CLINIC_UPDATE_VALIDATORS);
+        const validationResult = await this.clinicUpdateValidator.validate(request.body);
 
         if (!validationResult.ok) {
             this.sendError(response, validationResult.status, validationResult.message);

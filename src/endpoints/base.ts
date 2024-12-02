@@ -594,12 +594,10 @@ function makeMethodDecorator<T extends EndpointMethod>(
     };
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type EndpointMethod = (
     request: Request<any, any, any, any, any>,
     response: Response<any, any>
 ) => Promise<void> | void;
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 type MethodDecoratorOptions = {
     path?: string;

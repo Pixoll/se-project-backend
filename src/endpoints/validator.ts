@@ -1,24 +1,91 @@
 import { HTTPStatus } from "./base";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ValidatorObject<T extends Record<string, any>> = {
-    [K in keyof T]: Validator;
+export class Validator<T extends Record<string, any>> {
+    public readonly validators: RecursiveReadonly<ValidatorObject<T, false>>;
+
+    public constructor(validators: ValidatorObject<T>) {
+        const parsedValidators = {
+            ...validators.global && { global: validators.global },
+        } as ValidatorObject<T, false>;
+
+        type ValidatorEntries = Array<[(keyof T & string) | "global", ValidatorObject<T>[keyof ValidatorObject<T>]]>;
+        for (const [key, validator] of Object.entries(validators) as ValidatorEntries) {
+            if (key === "global") {
+                continue;
+            }
+
+            // @ts-expect-error: key is never "global" at this point
+            parsedValidators[key] = Object.freeze(typeof validator === "function" ? {
+                required: false,
+                validator: validator as ValidatorFunction,
+            } : validator);
+        }
+
+        this.validators = Object.freeze(parsedValidators) as RecursiveReadonly<ValidatorObject<T, false>>;
+    }
+
+    public async validate(object: Record<string, any>): Promise<ValidationResult<T>> {
+        const result = {} as T;
+
+        type ValidatorEntries = Array<[(keyof T & string) | "global", ValidatorEntry]>;
+        for (const [key, validator] of Object.entries(this.validators) as ValidatorEntries) {
+            if (key === "global") {
+                continue;
+            }
+
+            const value = object[key];
+
+            if (validator.required && !value) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Missing ${key}.`,
+                };
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const validationResult = await validator.validate(value, key);
+
+            if (!validationResult.ok) {
+                return validationResult;
+            }
+
+            result[key] = value;
+        }
+
+        const globalValidator = this.validators.global as GlobalValidatorFunction | undefined;
+
+        const validationResult = await globalValidator?.(object) ?? {
+            ok: true,
+        };
+
+        return validationResult.ok ? {
+            ok: true,
+            value: result,
+        } : validationResult;
+    }
+}
+
+type ValidatorObject<T extends Record<string, any>, IncludeFunctionEntries extends boolean = true> = {
+    [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction | ValidatorEntry : ValidatorEntry;
 } & {
-    global?: (object: T) => ValidatorResult | Promise<ValidatorResult>;
+    global?: GlobalValidatorFunction;
 };
 
-type Validator = ValidatorFunction | {
-    required: true;
-    validator: ValidatorFunction;
+type ValidatorEntry = {
+    required: boolean;
+    validate: ValidatorFunction;
 };
 
 type ValidatorFunction = (value: unknown, key: string) => ValidatorResult | Promise<ValidatorResult>;
 
-export type ValidatorResult = ValidationError | {
+type GlobalValidatorFunction = (object: Record<string, any>) => ValidatorResult | Promise<ValidatorResult>;
+
+type ValidatorResult = ValidationError | {
     ok: true;
 };
 
-export type ValidationResult<T> = ValidationError | {
+type ValidationResult<T> = ValidationError | {
     ok: true;
     value: T;
 };
@@ -29,41 +96,6 @@ type ValidationError = {
     message: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function validate<T extends Record<string, any>>(
-    target: T,
-    validators: ValidatorObject<T>
-): Promise<ValidationResult<T>> {
-    // @ts-expect-error: if it's valid, it will be of type T
-    const result: T = {};
-
-    for (const [key, validator] of Object.entries(validators) as Array<[keyof T & string, Validator]>) {
-        const isValidatorFunction = typeof validator === "function";
-
-        const value = target[key];
-
-        if (!isValidatorFunction && validator.required && !value) {
-            return {
-                ok: false,
-                status: HTTPStatus.BAD_REQUEST,
-                message: `Missing ${key}.`,
-            };
-        }
-
-        const validatorFunction = isValidatorFunction ? validator : validator.validator;
-
-        // eslint-disable-next-line no-await-in-loop
-        const validationResult = await validatorFunction(value, key);
-
-        if (!validationResult.ok) {
-            return validationResult;
-        }
-
-        result[key] = value;
-    }
-
-    return {
-        ok: true,
-        value: result,
-    };
-}
+type RecursiveReadonly<T> = {
+    readonly [K in keyof T]: T extends Record<infer _, infer __> ? RecursiveReadonly<T[K]> : T[K];
+};
