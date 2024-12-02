@@ -1,14 +1,17 @@
 import { HTTPStatus } from "./base";
 
-export class Validator<T extends Record<string, any>> {
-    public readonly validators: RecursiveReadonly<ValidatorObject<T, false>>;
+export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends any[] = []> {
+    public readonly validators: RecursiveReadonly<ValidatorObject<T, ExtraGlobalArgs, false>>;
 
-    public constructor(validators: ValidatorObject<T>) {
+    public constructor(validators: ValidatorObject<T, ExtraGlobalArgs>) {
         const parsedValidators = {
             ...validators.global && { global: validators.global },
-        } as ValidatorObject<T, false>;
+        } as ValidatorObject<T, ExtraGlobalArgs, false>;
 
-        type ValidatorEntries = Array<[(keyof T & string) | "global", ValidatorObject<T>[keyof ValidatorObject<T>]]>;
+        type ValidatorEntries = Array<[
+            (keyof T & string) | "global",
+            ValidatorObject<T, ExtraGlobalArgs>[keyof ValidatorObject<T, ExtraGlobalArgs>]
+        ]>;
         for (const [key, validator] of Object.entries(validators) as ValidatorEntries) {
             if (key === "global") {
                 continue;
@@ -21,10 +24,10 @@ export class Validator<T extends Record<string, any>> {
             } : validator);
         }
 
-        this.validators = Object.freeze(parsedValidators) as RecursiveReadonly<ValidatorObject<T, false>>;
+        this.validators = Object.freeze(parsedValidators) as RecursiveReadonly<ValidatorObject<T, ExtraGlobalArgs, false>>;
     }
 
-    public async validate(object: Record<string, any>): Promise<ValidationResult<T>> {
+    public async validate(object: Record<string, any>, ...args: ExtraGlobalArgs): Promise<ValidationResult<T>> {
         const result = {} as T;
 
         type ValidatorEntries = Array<[(keyof T & string) | "global", ValidatorEntry]>;
@@ -53,9 +56,9 @@ export class Validator<T extends Record<string, any>> {
             result[key] = value;
         }
 
-        const globalValidator = this.validators.global as GlobalValidatorFunction<T> | undefined;
+        const globalValidator = this.validators.global as GlobalValidatorFunction<T, ExtraGlobalArgs> | undefined;
 
-        const validationResult = await globalValidator?.(object as T) ?? {
+        const validationResult = await globalValidator?.(object as T, ...args) ?? {
             ok: true,
         };
 
@@ -66,10 +69,14 @@ export class Validator<T extends Record<string, any>> {
     }
 }
 
-type ValidatorObject<T extends Record<string, any>, IncludeFunctionEntries extends boolean = true> = {
+type ValidatorObject<
+    T extends Record<string, any>,
+    ExtraGlobalArgs extends any[],
+    IncludeFunctionEntries extends boolean = true
+> = {
     [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction | ValidatorEntry : ValidatorEntry;
 } & {
-    global?: GlobalValidatorFunction<T>;
+    global?: GlobalValidatorFunction<T, ExtraGlobalArgs>;
 };
 
 type ValidatorEntry = {
@@ -79,7 +86,10 @@ type ValidatorEntry = {
 
 type ValidatorFunction = (value: unknown, key: string) => ValidatorResult | Promise<ValidatorResult>;
 
-type GlobalValidatorFunction<T> = (object: T) => ValidatorResult | Promise<ValidatorResult>;
+type GlobalValidatorFunction<T, ExtraGlobalArgs extends any[]> = (
+    object: T,
+    ...args: ExtraGlobalArgs
+) => ValidatorResult | Promise<ValidatorResult>;
 
 type ValidatorResult = ValidationError | {
     ok: true;
