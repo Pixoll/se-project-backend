@@ -308,59 +308,59 @@ export class PatientsEndpoint extends Endpoint {
             firstName: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.firstName.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             secondName: this.newPatientValidator.validators.secondName,
             firstLastName: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.firstLastName.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             secondLastName: this.newPatientValidator.validators.secondLastName,
             email: async (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.email.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             phone: async (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.phone.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             birthDate: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.birthDate.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             gender: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.gender.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             weight: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.weight.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             height: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.height.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             rhesusFactor: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.rhesusFactor.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             bloodTypeId: async (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.bloodTypeId.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             insuranceTypeId: async (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newPatientValidator.validators.insuranceTypeId.validate(value, key);
+                } : this.newPatientValidator.validators[key].validate(value, key);
             },
             allergiesHistory: this.newPatientValidator.validators.allergiesHistory,
             morbidityHistory: this.newPatientValidator.validators.morbidityHistory,
