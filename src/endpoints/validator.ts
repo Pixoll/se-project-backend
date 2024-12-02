@@ -1,22 +1,14 @@
 import { HTTPStatus } from "./base";
 
 export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends any[] = []> {
-    public readonly validators: RecursiveReadonly<ValidatorObject<T, ExtraGlobalArgs, false>>;
+    public readonly validators: RecursiveReadonly<ValidatorObject<T, false>>;
+    public readonly globalValidator?: GlobalValidatorFunction<T, ExtraGlobalArgs>;
 
-    public constructor(validators: ValidatorObject<T, ExtraGlobalArgs>) {
-        const parsedValidators = {
-            ...validators.global && { global: validators.global },
-        } as ValidatorObject<T, ExtraGlobalArgs, false>;
+    public constructor(validators: ValidatorObject<T>, globalValidator?: GlobalValidatorFunction<T, ExtraGlobalArgs>) {
+        const parsedValidators = {} as ValidatorObject<T, false>;
 
-        type ValidatorEntries = Array<[
-            (keyof T & string) | "global",
-            ValidatorObject<T, ExtraGlobalArgs>[keyof ValidatorObject<T, ExtraGlobalArgs>]
-        ]>;
+        type ValidatorEntries = Array<[keyof T & string, ValidatorObject<T>[keyof ValidatorObject<T>]]>;
         for (const [key, validator] of Object.entries(validators) as ValidatorEntries) {
-            if (key === "global") {
-                continue;
-            }
-
             // @ts-expect-error: key is never "global" at this point
             parsedValidators[key] = Object.freeze(typeof validator === "function" ? {
                 required: false,
@@ -24,18 +16,15 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
             } : validator);
         }
 
-        this.validators = Object.freeze(parsedValidators) as RecursiveReadonly<ValidatorObject<T, ExtraGlobalArgs, false>>;
+        this.validators = Object.freeze(parsedValidators) as RecursiveReadonly<ValidatorObject<T, false>>;
+        this.globalValidator = globalValidator;
     }
 
     public async validate(object: Record<string, any>, ...args: ExtraGlobalArgs): Promise<ValidationResult<T>> {
         const result = {} as T;
 
-        type ValidatorEntries = Array<[(keyof T & string) | "global", ValidatorEntry]>;
+        type ValidatorEntries = Array<[keyof T & string, ValidatorEntry]>;
         for (const [key, validator] of Object.entries(this.validators) as ValidatorEntries) {
-            if (key === "global") {
-                continue;
-            }
-
             const value = object[key];
 
             if (validator.required && !value) {
@@ -56,9 +45,7 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
             result[key] = value;
         }
 
-        const globalValidator = this.validators.global as GlobalValidatorFunction<T, ExtraGlobalArgs> | undefined;
-
-        const validationResult = await globalValidator?.(object as T, ...args) ?? {
+        const validationResult = await this.globalValidator?.(object as T, ...args) ?? {
             ok: true,
         };
 
@@ -69,14 +56,8 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
     }
 }
 
-type ValidatorObject<
-    T extends Record<string, any>,
-    ExtraGlobalArgs extends any[],
-    IncludeFunctionEntries extends boolean = true
-> = {
+type ValidatorObject<T extends Record<string, any>, IncludeFunctionEntries extends boolean = true> = {
     [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction | ValidatorEntry : ValidatorEntry;
-} & {
-    global?: GlobalValidatorFunction<T, ExtraGlobalArgs>;
 };
 
 type ValidatorEntry = {
@@ -107,5 +88,7 @@ type ValidationError = {
 };
 
 type RecursiveReadonly<T> = {
-    readonly [K in keyof T]: T extends Record<infer _, infer __> ? RecursiveReadonly<T[K]> : T[K];
+    readonly [K in keyof T]: T[K] extends (...args: any[]) => any ? T[K]
+        : T[K] extends Record<infer _, infer __> ? RecursiveReadonly<T[K]>
+            : T[K];
 };

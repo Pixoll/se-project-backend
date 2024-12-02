@@ -428,74 +428,73 @@ export class PatientsEndpoint extends Endpoint {
                     };
                 },
             },
-            global: async ({ date, timeSlotId }, patientRut) => {
-                const day = days[(new Date(date).getUTCDay() + 1) % 7];
+        }, async ({ date, timeSlotId }, patientRut) => {
+            const day = days[(new Date(date).getUTCDay() + 1) % 7];
 
-                const { doesDayMatch, hasAlreadyStarted } = await db
-                    .selectFrom("time_slot")
-                    .select(eb => [
-                        eb("day", "=", day).as("doesDayMatch"),
-                        eb(sql`current_date()`, "=", date)
-                            .and("start", "<", sql<string>`current_time()`)
-                            .as("hasAlreadyStarted"),
-                    ])
-                    .where("id", "=", timeSlotId)
-                    .executeTakeFirst() ?? {};
+            const { doesDayMatch, hasAlreadyStarted } = await db
+                .selectFrom("time_slot")
+                .select(eb => [
+                    eb("day", "=", day).as("doesDayMatch"),
+                    eb(sql`current_date()`, "=", date)
+                        .and("start", "<", sql<string>`current_time()`)
+                        .as("hasAlreadyStarted"),
+                ])
+                .where("id", "=", timeSlotId)
+                .executeTakeFirst() ?? {};
 
-                if (!doesDayMatch) {
-                    return {
-                        ok: false,
-                        status: HTTPStatus.CONFLICT,
-                        message: "Appointment day and time slot day do not match.",
-                    };
-                }
-
-                if (hasAlreadyStarted) {
-                    return {
-                        ok: false,
-                        status: HTTPStatus.CONFLICT,
-                        message: "Time slot has already started.",
-                    };
-                }
-
-                const doesOverlap = await db
-                    .selectFrom("appointment as a")
-                    .innerJoin("time_slot as t1", "t1.id", "a.time_slot_id")
-                    .innerJoin("time_slot as t2", (join) =>
-                        join.on("t2.id", "=", timeSlotId)
-                    )
-                    .innerJoin("medic as m1", "m1.schedule_id", "t1.schedule_id")
-                    .innerJoin("medic as m2", "m2.schedule_id", "t2.schedule_id")
-                    .select("a.id")
-                    .where(({ eb, and, or, ref }) => and([
-                        eb("a.date", "=", date),
-                        or([
-                            eb("a.patient_rut", "=", patientRut),
-                            eb("m1.rut", "=", ref("m2.rut")),
-                        ]),
-                        or([
-                            eb("t1.start", "=", ref("t2.start")),
-                            eb("t1.end", "=", ref("t2.end")),
-                            eb("t1.start", "<", ref("t2.start")).and("t2.start", "<", ref("t1.end")),
-                            eb("t1.start", "<", ref("t2.end")).and("t2.end", "<", ref("t1.end")),
-                            eb("t2.start", "<", ref("t1.start")).and("t1.end", "<", ref("t2.end")),
-                            eb("t1.start", "<", ref("t2.start")).and("t2.end", "<", ref("t1.end")),
-                        ]),
-                    ]))
-                    .executeTakeFirst();
-
-                if (doesOverlap) {
-                    return {
-                        ok: false,
-                        status: HTTPStatus.CONFLICT,
-                        message: "Appointment overlaps with another.",
-                    };
-                }
-
+            if (!doesDayMatch) {
                 return {
-                    ok: true,
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: "Appointment day and time slot day do not match.",
                 };
-            },
+            }
+
+            if (hasAlreadyStarted) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: "Time slot has already started.",
+                };
+            }
+
+            const doesOverlap = await db
+                .selectFrom("appointment as a")
+                .innerJoin("time_slot as t1", "t1.id", "a.time_slot_id")
+                .innerJoin("time_slot as t2", (join) =>
+                    join.on("t2.id", "=", timeSlotId)
+                )
+                .innerJoin("medic as m1", "m1.schedule_id", "t1.schedule_id")
+                .innerJoin("medic as m2", "m2.schedule_id", "t2.schedule_id")
+                .select("a.id")
+                .where(({ eb, and, or, ref }) => and([
+                    eb("a.date", "=", date),
+                    or([
+                        eb("a.patient_rut", "=", patientRut),
+                        eb("m1.rut", "=", ref("m2.rut")),
+                    ]),
+                    or([
+                        eb("t1.start", "=", ref("t2.start")),
+                        eb("t1.end", "=", ref("t2.end")),
+                        eb("t1.start", "<", ref("t2.start")).and("t2.start", "<", ref("t1.end")),
+                        eb("t1.start", "<", ref("t2.end")).and("t2.end", "<", ref("t1.end")),
+                        eb("t2.start", "<", ref("t1.start")).and("t1.end", "<", ref("t2.end")),
+                        eb("t1.start", "<", ref("t2.start")).and("t2.end", "<", ref("t1.end")),
+                    ]),
+                ]))
+                .executeTakeFirst();
+
+            if (doesOverlap) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: "Appointment overlaps with another.",
+                };
+            }
+
+            return {
+                ok: true,
+            };
         });
     }
 
