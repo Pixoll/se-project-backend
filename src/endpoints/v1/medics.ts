@@ -19,10 +19,12 @@ import { Validator } from "../validator";
 export class MedicsEndpoint extends Endpoint {
     private readonly medicUpdateValidator: Validator<MedicUpdate>;
     private readonly newAppointmentValidator: Validator<NewAppointment>;
-    private readonly newScheduleSlotValidator: Validator<NewScheduleSlot, [scheduleId: number]>;
-    private readonly scheduleSlotUpdateValidator: Validator<ScheduleSlotUpdate, [
-        timeSlot: SnakeToCamelRecord<TimeSlot>,
+    private readonly appointmentUpdateValidator: Validator<AppointmentUpdate, [
+        oldAppointment: Required<AppointmentUpdate>,
+        patientRut: string,
     ]>;
+    private readonly newScheduleSlotValidator: Validator<NewScheduleSlot, [scheduleId: number]>;
+    private readonly scheduleSlotUpdateValidator: Validator<ScheduleSlotUpdate, [timeSlot: SnakeToCamelRecord<TimeSlot>]>;
 
     public constructor() {
         super("/medics");
@@ -377,6 +379,43 @@ export class MedicsEndpoint extends Endpoint {
             };
         });
 
+        this.appointmentUpdateValidator = new Validator<AppointmentUpdate, [
+            oldAppointment: Required<AppointmentUpdate>,
+            patientRut: string,
+        ]>({
+            date: (value, key) => {
+                return typeof value === "undefined" ? {
+                    ok: true,
+                } : this.newAppointmentValidator.validators[key].validate(value, key);
+            },
+            description: (value, key) => {
+                return typeof value === "undefined" ? {
+                    ok: true,
+                } : this.newAppointmentValidator.validators[key].validate(value, key);
+            },
+            timeSlotId: (value, key) => {
+                return typeof value === "undefined" ? {
+                    ok: true,
+                } : this.newAppointmentValidator.validators[key].validate(value, key);
+            },
+            confirmed: (value, key) => {
+                const valid = typeof value === "undefined" || (typeof value === "boolean" && value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: `Appointment ${key} status can only be changed from false to true.`,
+                };
+            },
+        }, (appointment, oldAppointment, patientRut) => {
+            return this.newAppointmentValidator.globalValidator!({
+                ...oldAppointment,
+                ...appointment,
+                patientRut,
+            });
+        });
+
         this.newScheduleSlotValidator = new Validator<NewScheduleSlot, [scheduleId: number]>({
             day: {
                 required: true,
@@ -445,23 +484,21 @@ export class MedicsEndpoint extends Endpoint {
             };
         });
 
-        this.scheduleSlotUpdateValidator = new Validator<ScheduleSlotUpdate, [
-            timeSlot: SnakeToCamelRecord<TimeSlot>,
-        ]>({
+        this.scheduleSlotUpdateValidator = new Validator<ScheduleSlotUpdate, [timeSlot: SnakeToCamelRecord<TimeSlot>]>({
             day: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newScheduleSlotValidator.validators.day.validate(value, key);
+                } : this.newScheduleSlotValidator.validators[key].validate(value, key);
             },
             start: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newScheduleSlotValidator.validators.start.validate(value, key);
+                } : this.newScheduleSlotValidator.validators[key].validate(value, key);
             },
             end: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
-                } : this.newScheduleSlotValidator.validators.end.validate(value, key);
+                } : this.newScheduleSlotValidator.validators[key].validate(value, key);
             },
         }, async (object, timeSlot) => {
             const day = object.day ?? timeSlot.day;
@@ -758,6 +795,98 @@ export class MedicsEndpoint extends Endpoint {
             .execute();
 
         this.sendStatus(response, HTTPStatus.CREATED);
+    }
+
+    @PatchMethod({ path: "/:rut/appointments/:id", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    public async updateAppointment(
+        request: Request<{ rut: string; id: string }, unknown, AppointmentUpdate>,
+        response: Response
+    ): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const id = await new Promise<bigint | null>(resolve => {
+            try {
+                resolve(BigInt(request.params.id));
+            } catch (_) {
+                resolve(null);
+            }
+        });
+
+        if (!id || id <= 0n) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid appointment id.");
+            return;
+        }
+
+        const medic = await db
+            .selectFrom("medic")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!medic) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Medic ${rut} does not exist.`);
+            return;
+        }
+
+        const idString = id.toString() as BigIntString;
+
+        const appointment = await db
+            .selectFrom("appointment as a")
+            .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
+            .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
+            .select([
+                "a.date",
+                "a.time_slot_id as timeSlotId",
+                "a.description",
+                "a.confirmed",
+            ])
+            .where("id", "=", idString)
+            .where("m.rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!appointment) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Appointment ${id} for medic ${rut} does not exist.`);
+            return;
+        }
+
+        const validationResult = await this.appointmentUpdateValidator.validate(request.body, appointment, rut);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
+            return;
+        }
+
+        const { date, timeSlotId, description, confirmed } = validationResult.value;
+
+        const updateResult = await db
+            .updateTable("appointment")
+            .where("id", "=", idString)
+            .set({
+                date,
+                time_slot_id: timeSlotId,
+                description,
+                confirmed,
+            })
+            .execute();
+
+        if (updateResult[0].numChangedRows === 0n) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
@@ -1089,6 +1218,13 @@ type NewAppointment = {
     date: string;
     timeSlotId: number;
     description: string;
+};
+
+type AppointmentUpdate = {
+    date?: string;
+    timeSlotId?: number;
+    description?: string;
+    confirmed?: boolean;
 };
 
 type ScheduleSlot = Omit<TimeSlot, "schedule_id"> & {

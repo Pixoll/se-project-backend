@@ -48,6 +48,19 @@ components:
           type: string
         confirmed:
           type: boolean
+    AppointmentUpdate:
+      type: object
+      properties:
+        date:
+          $ref: "#/components/schemas/Date"
+        timeSlotId:
+          type: number
+          minimum: 1
+        description:
+          type: string
+          minimum: 1
+        confirmed:
+          type: boolean
     BloodType:
       type: object
       properties:
@@ -886,6 +899,57 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/Rut"
+  /medics/{rut}/appointments/{id}:
+    patch:
+      tags: [ Medics, Appointments ]
+      summary: Update a medic's appointment.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdate"
+      responses:
+        201:
+          description: Successfully updated the appointment.
+        304:
+          description: Appointment was not modified.
+        400:
+          description: Malformed rut or request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic or appointment do not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Request body creates conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+      - name: id
+        in: path
+        description: The appointment's id.
+        required: true
+        schema:
+          type: number
+          minimum: 1
   /medics/{rut}/schedule:
     get:
       tags: [ Medics, Schedule ]
@@ -1243,6 +1307,58 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/Rut"
+  /patients/{rut}/appointments/{id}:
+    patch:
+      tags: [ Patient, Appointments ]
+      summary: Update a patient's appointment. Patients can only modify their own appointments.
+      security:
+        - PatientSessionToken: [ ]
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdate"
+      responses:
+        201:
+          description: Successfully updated the appointment.
+        304:
+          description: Appointment was not modified.
+        400:
+          description: Malformed rut or request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Patient or appointment do not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Request body creates conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The patient's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+      - name: id
+        in: path
+        description: The appointment's id.
+        required: true
+        schema:
+          type: number
+          minimum: 1
   /patients/{rut}/session:
     post:
       tags: [ Patients ]

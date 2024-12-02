@@ -21,6 +21,10 @@ export class PatientsEndpoint extends Endpoint {
     private readonly newPatientValidator: Validator<PatientBody>;
     private readonly patientUpdateValidator: Validator<PatientUpdateBody>;
     private readonly newAppointmentValidator: Validator<NewAppointment, [patientRut: string]>;
+    private readonly appointmentUpdateValidator: Validator<AppointmentUpdate, [
+        oldAppointment: Required<AppointmentUpdate>,
+        patientRut: string,
+    ]>;
 
     public constructor() {
         super("/patients");
@@ -496,6 +500,72 @@ export class PatientsEndpoint extends Endpoint {
                 ok: true,
             };
         });
+
+        this.appointmentUpdateValidator = new Validator<AppointmentUpdate, [
+            oldAppointment: Required<AppointmentUpdate>,
+            patientRut: string,
+        ]>({
+            date: (value, key) => {
+                return typeof value === "undefined" ? {
+                    ok: true,
+                } : this.newAppointmentValidator.validators[key].validate(value, key);
+            },
+            description: (value, key) => {
+                return typeof value === "undefined" ? {
+                    ok: true,
+                } : this.newAppointmentValidator.validators[key].validate(value, key);
+            },
+            timeSlotId: (value, key) => {
+                return typeof value === "undefined" ? {
+                    ok: true,
+                } : this.newAppointmentValidator.validators[key].validate(value, key);
+            },
+            confirmed: (value, key) => {
+                const valid = typeof value === "undefined" || (typeof value === "boolean" && value);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: `Appointment ${key} status can only be changed from false to true.`,
+                };
+            },
+        }, async (appointment, oldAppointment, patientRut) => {
+            const validationResult = await this.newAppointmentValidator.globalValidator!({
+                ...oldAppointment,
+                ...appointment,
+            }, patientRut);
+
+            if (!validationResult.ok) return validationResult;
+
+            const { timeSlotId } = appointment;
+
+            if (!timeSlotId || timeSlotId === oldAppointment.timeSlotId) {
+                return {
+                    ok: true,
+                };
+            }
+
+            const didMedicChange = await db
+                .selectFrom("appointment as a")
+                .innerJoin("time_slot as t1", "t1.id", "a.time_slot_id")
+                .innerJoin("time_slot as t2", (join) =>
+                    join.on("t2.id", "=", timeSlotId)
+                )
+                .innerJoin("medic as m1", "m1.schedule_id", "t1.schedule_id")
+                .innerJoin("medic as m2", "m2.schedule_id", "t2.schedule_id")
+                .select("a.id")
+                .whereRef("m1.rut", "!=", "m2.rut")
+                .executeTakeFirst();
+
+            return !didMedicChange ? {
+                ok: true,
+            } : {
+                ok: false,
+                status: HTTPStatus.CONFLICT,
+                message: "Cannot change assigned medic.",
+            };
+        });
     }
 
     @GetMethod({ path: "/:rut", requiresAuthorization: true })
@@ -830,6 +900,96 @@ export class PatientsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.CREATED);
     }
 
+    @PatchMethod({ path: "/:rut/appointments/:id", requiresAuthorization: true })
+    public async updateAppointment(
+        request: Request<{ rut: string; id: string }, unknown, AppointmentUpdate>,
+        response: Response
+    ): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const id = await new Promise<bigint | null>(resolve => {
+            try {
+                resolve(BigInt(request.params.id));
+            } catch (_) {
+                resolve(null);
+            }
+        });
+
+        if (!id || id <= 0n) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid appointment id.");
+            return;
+        }
+
+        const patient = await db
+            .selectFrom("patient")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!patient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        const idString = id.toString() as BigIntString;
+
+        const appointment = await db
+            .selectFrom("appointment")
+            .select([
+                "date",
+                "time_slot_id as timeSlotId",
+                "description",
+                "confirmed",
+            ])
+            .where("id", "=", idString)
+            .where("patient_rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!appointment) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Appointment ${id} for patient ${rut} does not exist.`);
+            return;
+        }
+
+        const validationResult = await this.appointmentUpdateValidator.validate(request.body, appointment, rut);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
+            return;
+        }
+
+        const { date, timeSlotId, description, confirmed } = validationResult.value;
+
+        const updateResult = await db
+            .updateTable("appointment")
+            .where("id", "=", idString)
+            .set({
+                date,
+                time_slot_id: timeSlotId,
+                description,
+                confirmed,
+            })
+            .execute();
+
+        if (updateResult[0].numChangedRows === 0n) {
+            this.sendStatus(response, HTTPStatus.NOT_MODIFIED);
+            return;
+        }
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
+    }
+
     @PostMethod("/:rut/session")
     public async createSession(
         request: Request<{ rut: string }, unknown, { password?: string }>,
@@ -891,6 +1051,13 @@ type NewAppointment = {
     date: string;
     timeSlotId: number;
     description: string;
+};
+
+type AppointmentUpdate = {
+    date?: string;
+    timeSlotId?: number;
+    description?: string;
+    confirmed?: boolean;
 };
 
 type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "rut" | "salt" | "session_token">>;
