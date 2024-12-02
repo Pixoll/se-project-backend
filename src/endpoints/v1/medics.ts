@@ -20,7 +20,9 @@ export class MedicsEndpoint extends Endpoint {
     private readonly medicUpdateValidator: Validator<MedicUpdate>;
     private readonly newAppointmentValidator: Validator<NewAppointment>;
     private readonly newScheduleSlotValidator: Validator<NewScheduleSlot, [scheduleId: number]>;
-    private readonly scheduleSlotUpdateValidator: Validator<ScheduleSlotUpdate>;
+    private readonly scheduleSlotUpdateValidator: Validator<ScheduleSlotUpdate, [
+        timeSlot: SnakeToCamelRecord<TimeSlot>,
+    ]>;
 
     public constructor() {
         super("/medics");
@@ -443,7 +445,9 @@ export class MedicsEndpoint extends Endpoint {
             };
         });
 
-        this.scheduleSlotUpdateValidator = new Validator<ScheduleSlotUpdate>({
+        this.scheduleSlotUpdateValidator = new Validator<ScheduleSlotUpdate, [
+            timeSlot: SnakeToCamelRecord<TimeSlot>,
+        ]>({
             day: (value, key) => {
                 return typeof value === "undefined" ? {
                     ok: true,
@@ -459,6 +463,54 @@ export class MedicsEndpoint extends Endpoint {
                     ok: true,
                 } : this.newScheduleSlotValidator.validators.end.validate(value, key);
             },
+        }, async (object, timeSlot) => {
+            const day = object.day ?? timeSlot.day;
+            const start = object.start ?? timeSlot.start;
+            const end = object.end ?? timeSlot.end;
+
+            const doesOverlap = await db
+                .selectFrom("time_slot")
+                .select("id")
+                .where(({ eb, and, or }) => and([
+                    eb("schedule_id", "=", timeSlot.scheduleId),
+                    eb("day", "=", day),
+                    eb("active", "=", true),
+                    or([
+                        eb("start", "=", start),
+                        eb("end", "=", end),
+                        eb("start", "<", start).and("end", ">", start),
+                        eb("start", "<", end).and("end", ">", end),
+                        eb("start", ">", start).and("end", "<", end),
+                        eb("start", "<", start).and("end", ">", end),
+                    ]),
+                ]))
+                .executeTakeFirst();
+
+            if (doesOverlap) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: "Time slot overlaps with another.",
+                };
+            }
+
+            const hasActiveAppointments = await db
+                .selectFrom("appointment")
+                .select("id")
+                .where("time_slot_id", "=", timeSlot.id)
+                .executeTakeFirst();
+
+            if (hasActiveAppointments) {
+                return {
+                    ok: false,
+                    status: HTTPStatus.CONFLICT,
+                    message: "Time slot has appointments associated.",
+                };
+            }
+
+            return {
+                ok: true,
+            };
         });
     }
 
@@ -851,6 +903,8 @@ export class MedicsEndpoint extends Endpoint {
         const timeSlot = await db
             .selectFrom("time_slot")
             .select([
+                "id",
+                "schedule_id as scheduleId",
                 "day",
                 "start",
                 "end",
@@ -864,55 +918,17 @@ export class MedicsEndpoint extends Endpoint {
             return;
         }
 
-        const validationResult = await this.scheduleSlotUpdateValidator.validate(request.body);
+        const validationResult = await this.scheduleSlotUpdateValidator.validate(request.body, timeSlot);
 
         if (!validationResult.ok) {
             this.sendError(response, validationResult.status, validationResult.message);
             return;
         }
 
-        const day = validationResult.value.day ?? timeSlot.day;
-        const start = validationResult.value.start ?? timeSlot.start;
-        const end = validationResult.value.end ?? timeSlot.end;
-
-        const doesOverlap = await db
-            .selectFrom("time_slot")
-            .select("id")
-            .where(({ eb, and, or }) => and([
-                eb("schedule_id", "=", scheduleId),
-                eb("day", "=", day),
-                eb("active", "=", true),
-                or([
-                    eb("start", "=", start),
-                    eb("end", "=", end),
-                    eb("start", "<", start).and("end", ">", start),
-                    eb("start", "<", end).and("end", ">", end),
-                    eb("start", ">", start).and("end", "<", end),
-                    eb("start", "<", start).and("end", ">", end),
-                ]),
-            ]))
-            .executeTakeFirst();
-
-        if (doesOverlap) {
-            this.sendError(response, HTTPStatus.CONFLICT, "Time slot overlaps with another.");
-            return;
-        }
-
-        const hasActiveAppointments = await db
-            .selectFrom("appointment")
-            .select("id")
-            .where("time_slot_id", "=", id)
-            .executeTakeFirst();
-
-        if (hasActiveAppointments) {
-            this.sendError(response, HTTPStatus.CONFLICT, "Time slot has appointments associated.");
-            return;
-        }
-
         const updateResult = await db
             .updateTable("time_slot")
             .where("id", "=", id)
-            .set({ day, start, end })
+            .set(validationResult.value)
             .execute();
 
         if (updateResult[0].numChangedRows === 0n) {
