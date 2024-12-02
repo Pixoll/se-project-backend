@@ -53,9 +53,9 @@ export class Validator<T extends Record<string, any>> {
             result[key] = value;
         }
 
-        const globalValidator = this.validators.global as GlobalValidatorFunction | undefined;
+        const globalValidator = this.validators.global as GlobalValidatorFunction<T> | undefined;
 
-        const validationResult = await globalValidator?.(object) ?? {
+        const validationResult = await globalValidator?.(object as T) ?? {
             ok: true,
         };
 
@@ -69,7 +69,7 @@ export class Validator<T extends Record<string, any>> {
 type ValidatorObject<T extends Record<string, any>, IncludeFunctionEntries extends boolean = true> = {
     [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction | ValidatorEntry : ValidatorEntry;
 } & {
-    global?: GlobalValidatorFunction;
+    global?: GlobalValidatorFunction<T>;
 };
 
 type ValidatorEntry = {
@@ -79,7 +79,7 @@ type ValidatorEntry = {
 
 type ValidatorFunction = (value: unknown, key: string) => ValidatorResult | Promise<ValidatorResult>;
 
-type GlobalValidatorFunction = (object: Record<string, any>) => ValidatorResult | Promise<ValidatorResult>;
+type GlobalValidatorFunction<T> = (object: T) => ValidatorResult | Promise<ValidatorResult>;
 
 type ValidatorResult = ValidationError | {
     ok: true;
