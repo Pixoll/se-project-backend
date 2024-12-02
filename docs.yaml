@@ -6,6 +6,7 @@ servers:
   - url: /api/v1
 tags:
   - name: Admins
+  - name: Appointments
   - name: Clinic
   - name: Patients
   - name: Ping
@@ -26,7 +27,9 @@ components:
       required:
         - id
         - date
-        - patientRut
+        - day
+        - start
+        - end
         - description
         - confirmed
       properties:
@@ -34,8 +37,13 @@ components:
           type: number
         date:
           $ref: "#/components/schemas/Date"
-        patientRut:
-          $ref: "#/components/schemas/Rut"
+        day:
+          type: string
+          enum: [ mo, tu, we, th, fr, sa, su ]
+        start:
+          $ref: "#/components/schemas/Time"
+        end:
+          $ref: "#/components/schemas/Time"
         description:
           type: string
         confirmed:
@@ -397,6 +405,25 @@ components:
           $ref: "#/components/schemas/Time"
         end:
           $ref: "#/components/schemas/Time"
+    ScheduleSlotAppointment:
+      type: object
+      required:
+        - id
+        - date
+        - patientRut
+        - description
+        - confirmed
+      properties:
+        id:
+          type: number
+        date:
+          $ref: "#/components/schemas/Date"
+        patientRut:
+          $ref: "#/components/schemas/Rut"
+        description:
+          type: string
+        confirmed:
+          type: boolean
     ScheduleSlotUpdate:
       type: object
       properties:
@@ -431,7 +458,7 @@ components:
         appointments:
           type: array
           items:
-            $ref: "#/components/schemas/Appointment"
+            $ref: "#/components/schemas/ScheduleSlotAppointment"
     SessionToken:
       type: object
       required:
@@ -601,6 +628,33 @@ paths:
         required: true
         schema:
           $ref: "#/components/schemas/Rut"
+  /appointments:
+    get:
+      tags: [ Medics, Appointments ]
+      summary: Get a list of all of the future appointments.
+      security:
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the appointments list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/Appointment"
+                    - type: object
+                      required:
+                        - medicRut
+                        - patientRut
+                      properties:
+                        medicRut:
+                          $ref: "#/components/schemas/Rut"
+                        patientRut:
+                          $ref: "#/components/schemas/Rut"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
   /blood_types:
     get:
       tags: [ Misc ]
@@ -722,6 +776,50 @@ paths:
                 $ref: "#/components/schemas/Error"
         409:
           description: Employee with that email or phone already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The medic's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /medics/{rut}/appointments:
+    get:
+      tags: [ Medics, Appointments ]
+      summary: Get a list of the medic's future appointments. A medic can only get their own.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the medic's appointments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/Appointment"
+                    - type: object
+                      required:
+                        - patientRut
+                      properties:
+                        patientRut:
+                          $ref: "#/components/schemas/Rut"
+        400:
+          description: Malformed rut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic does not exist.
           content:
             application/json:
               schema:
@@ -999,6 +1097,51 @@ paths:
                 $ref: "#/components/schemas/Error"
         409:
           description: Patient with that email or phone already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    parameters:
+      - name: rut
+        in: path
+        description: The patient's rut.
+        required: true
+        schema:
+          $ref: "#/components/schemas/Rut"
+  /patients/{rut}/appointments:
+    get:
+      tags: [ Patients, Appointments ]
+      summary: Get a list of the patient's future appointments. A patient can only get their own.
+      security:
+        - PatientSessionToken: [ ]
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        200:
+          description: Successfully retrieved the patient's appointments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/Appointment"
+                    - type: object
+                      required:
+                        - medicRut
+                      properties:
+                        medicRut:
+                          $ref: "#/components/schemas/Rut"
+        400:
+          description: Malformed rut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Patient does not exist.
           content:
             application/json:
               schema:

@@ -1,7 +1,16 @@
 import { createHash } from "crypto";
 import { Request, Response } from "express";
 import { sql } from "kysely";
-import { Appointment as DBAppointment, db, Employee, isValidEmail, isValidPhone, isValidRut, TimeSlot } from "../../db";
+import {
+    Appointment as DBAppointment,
+    BigIntString,
+    db,
+    Employee,
+    isValidEmail,
+    isValidPhone,
+    isValidRut,
+    TimeSlot
+} from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
@@ -410,6 +419,56 @@ export class MedicsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 
+    @GetMethod({ path: "/:rut/appointments", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    public async getAppointments(request: Request<{ rut: string }>, response: Response<Appointment[]>): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const { scheduleId } = await db
+            .selectFrom("medic")
+            .select("schedule_id as scheduleId")
+            .where("rut", "=", rut)
+            .executeTakeFirst() ?? {};
+
+        if (!scheduleId) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Medic ${rut} does not exist.`);
+            return;
+        }
+
+        const appointments = await db
+            .selectFrom("appointment as a")
+            .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
+            .select([
+                "a.id",
+                "a.patient_rut as patientRut",
+                "a.date",
+                "t.day",
+                "t.start",
+                "t.end",
+                "a.description",
+                "a.confirmed",
+            ])
+            .where(({ eb, and }) => and([
+                eb("t.schedule_id", "=", scheduleId),
+                eb("a.date", ">=", sql<string>`current_date()`),
+                eb("t.active", "=", true),
+            ]))
+            .execute();
+
+        this.sendOk(response, appointments);
+    }
+
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
     public async getMedicSchedule(request: Request<{ rut: string }>, response: Response<ScheduleSlot[]>): Promise<void> {
         const { rut } = request.params;
@@ -450,7 +509,7 @@ export class MedicsEndpoint extends Endpoint {
                 "t.start",
                 "t.end",
                 "t.active",
-                sql<Appointment[]>`if(${fn.count("a.id")} > 0, json_arrayagg(json_object(
+                sql<ScheduleSlotAppointment[]>`if(${fn.count("a.id")} > 0, json_arrayagg(json_object(
                     "id", ${ref("a.id")},
                     "date", ${ref("a.date")},
                     "patientRut", ${ref("a.patient_rut")},
@@ -786,11 +845,22 @@ type MedicUpdate = Partial<SnakeToCamelRecord<Omit<Employee,
     specialtyId?: number;
 };
 
-type ScheduleSlot = Omit<TimeSlot, "schedule_id"> & {
-    appointments: Appointment[];
+type Appointment = {
+    id: BigIntString;
+    patientRut: string;
+    date: string;
+    day: TimeSlot["day"];
+    start: string;
+    end: string;
+    description: string;
+    confirmed: boolean;
 };
 
-type Appointment = SnakeToCamelRecord<Omit<DBAppointment, "time_slot_id">>;
+type ScheduleSlot = Omit<TimeSlot, "schedule_id"> & {
+    appointments: ScheduleSlotAppointment[];
+};
+
+type ScheduleSlotAppointment = SnakeToCamelRecord<Omit<DBAppointment, "time_slot_id">>;
 
 type NewScheduleSlot = Omit<ScheduleSlot, "active" |  "appointments" | "id">;
 

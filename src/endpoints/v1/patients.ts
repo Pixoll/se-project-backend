@@ -1,6 +1,17 @@
 import { createHash } from "crypto";
 import { Request, Response } from "express";
-import { db, hashPassword, isValidEmail, isValidPhone, isValidRut, NewPatient, Patient } from "../../db";
+import { sql } from "kysely";
+import {
+    BigIntString,
+    db,
+    hashPassword,
+    isValidEmail,
+    isValidPhone,
+    isValidRut,
+    NewPatient,
+    Patient,
+    TimeSlot
+} from "../../db";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { MapNullToUndefined, SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
@@ -581,6 +592,57 @@ export class PatientsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 
+    @GetMethod({ path: "/:rut/appointments", requiresAuthorization: true })
+    public async getAppointments(request: Request<{ rut: string }>, response: Response<Appointment[]>): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.PATIENT && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const patient = await db
+            .selectFrom("patient")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!patient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        const appointments = await db
+            .selectFrom("appointment as a")
+            .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
+            .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
+            .select([
+                "a.id",
+                "m.rut as medicRut",
+                "a.date",
+                "t.day",
+                "t.start",
+                "t.end",
+                "a.description",
+                "a.confirmed",
+            ])
+            .where(({ eb, and }) => and([
+                eb("a.patient_rut", "=", rut),
+                eb("a.date", ">=", sql<string>`current_date()`),
+                eb("t.active", "=", true),
+            ]))
+            .execute();
+
+        this.sendOk(response, appointments);
+    }
+
     @PostMethod("/:rut/session")
     public async createSession(
         request: Request<{ rut: string }, unknown, { password?: string }>,
@@ -626,6 +688,17 @@ export class PatientsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 }
+
+type Appointment = {
+    id: BigIntString;
+    medicRut: string;
+    date: string;
+    day: TimeSlot["day"];
+    start: string;
+    end: string;
+    description: string;
+    confirmed: boolean;
+};
 
 type PatientBody = SnakeToCamelRecord<Omit<NewPatient, "rut" | "salt" | "session_token">>;
 
