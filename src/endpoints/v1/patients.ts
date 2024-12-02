@@ -18,9 +18,9 @@ import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod 
 import { Validator } from "../validator";
 
 export class PatientsEndpoint extends Endpoint {
-    private newPatientValidator: Validator<PatientBody>;
-    private patientUpdateValidator: Validator<PatientUpdateBody>;
-    private newAppointmentValidator: Validator<NewAppointment, [patientRut: string]>;
+    private readonly newPatientValidator: Validator<PatientBody>;
+    private readonly patientUpdateValidator: Validator<PatientUpdateBody>;
+    private readonly newAppointmentValidator: Validator<NewAppointment, [patientRut: string]>;
 
     public constructor() {
         super("/patients");
