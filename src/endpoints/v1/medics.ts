@@ -18,13 +18,15 @@ import { Validator } from "../validator";
 
 export class MedicsEndpoint extends Endpoint {
     private readonly medicUpdateValidator: Validator<MedicUpdate>;
+    private readonly newAppointmentValidator: Validator<NewAppointment>;
     private readonly newScheduleSlotValidator: Validator<NewScheduleSlot, [scheduleId: number]>;
     private readonly scheduleSlotUpdateValidator: Validator<ScheduleSlotUpdate>;
 
     public constructor() {
         super("/medics");
 
-        const days = new Set(["mo", "tu", "we", "th", "fr", "sa", "su"]);
+        const days = ["mo", "tu", "we", "th", "fr", "sa", "su"] as const;
+        const daysSet = new Set<string>(days);
 
         this.medicUpdateValidator = new Validator<MedicUpdate>({
             firstName: (value, key) => {
@@ -218,11 +220,167 @@ export class MedicsEndpoint extends Endpoint {
             },
         });
 
+        this.newAppointmentValidator = new Validator<NewAppointment>({
+            patientRut: {
+                required: true,
+                validate: async (value, key) => {
+                    if (!value || typeof value !== "string" || !isValidRut(value)) {
+                        return {
+                            ok: false,
+                            status: HTTPStatus.BAD_REQUEST,
+                            message: `Invalid ${key}.`,
+                        };
+                    }
+
+                    const patient = await db
+                        .selectFrom("patient")
+                        .select("rut")
+                        .where("rut", "=", value)
+                        .executeTakeFirst();
+
+                    return patient ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            date: {
+                required: true,
+                validate: (value, key) => {
+                    const today = new Date(new Date().toLocaleDateString("es-CL").split("-").reverse().join("-")).getTime();
+
+                    const valid = !!value
+                        && typeof value === "string"
+                        && /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])$/.test(value)
+                        && new Date(value).getTime() >= today;
+
+                    return valid ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            description: {
+                required: true,
+                validate: (value, key) => {
+                    const valid = !!value && typeof value === "string";
+                    return valid ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            timeSlotId: {
+                required: true,
+                validate: async (value, key) => {
+                    if (!(value && typeof value === "number" && value > 0)) {
+                        return {
+                            ok: false,
+                            status: HTTPStatus.BAD_REQUEST,
+                            message: `Invalid ${key}.`,
+                        };
+                    }
+
+                    const timeSlot = await db
+                        .selectFrom("time_slot")
+                        .select("id")
+                        .where("id", "=", value)
+                        .where("active", "=", true)
+                        .executeTakeFirst();
+
+                    return timeSlot ? {
+                        ok: true,
+                    } : {
+                        ok: false,
+                        status: HTTPStatus.BAD_REQUEST,
+                        message: `Invalid ${key}.`,
+                    };
+                },
+            },
+            global: async ({ patientRut, date, timeSlotId }) => {
+                const day = days[(new Date(date).getUTCDay() + 1) % 7];
+
+                const { doesDayMatch, hasAlreadyStarted } = await db
+                    .selectFrom("time_slot")
+                    .select(eb => [
+                        eb("day", "=", day).as("doesDayMatch"),
+                        eb(sql`current_date()`, "=", date)
+                            .and("start", "<", sql<string>`current_time()`)
+                            .as("hasAlreadyStarted"),
+                    ])
+                    .where("id", "=", timeSlotId)
+                    .executeTakeFirst() ?? {};
+
+                if (!doesDayMatch) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.CONFLICT,
+                        message: "Appointment day and time slot day do not match.",
+                    };
+                }
+
+                if (hasAlreadyStarted) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.CONFLICT,
+                        message: "Time slot has already started.",
+                    };
+                }
+
+                const doesOverlap = await db
+                    .selectFrom("appointment as a")
+                    .innerJoin("time_slot as t1", "t1.id", "a.time_slot_id")
+                    .innerJoin("time_slot as t2", (join) =>
+                        join.on("t2.id", "=", timeSlotId)
+                    )
+                    .innerJoin("medic as m1", "m1.schedule_id", "t1.schedule_id")
+                    .innerJoin("medic as m2", "m2.schedule_id", "t2.schedule_id")
+                    .select("a.id")
+                    .where(({ eb, and, or, ref }) => and([
+                        eb("a.date", "=", date),
+                        or([
+                            eb("a.patient_rut", "=", patientRut),
+                            eb("m1.rut", "=", ref("m2.rut")),
+                        ]),
+                        or([
+                            eb("t1.start", "=", ref("t2.start")),
+                            eb("t1.end", "=", ref("t2.end")),
+                            eb("t1.start", "<", ref("t2.start")).and("t2.start", "<", ref("t1.end")),
+                            eb("t1.start", "<", ref("t2.end")).and("t2.end", "<", ref("t1.end")),
+                            eb("t2.start", "<", ref("t1.start")).and("t1.end", "<", ref("t2.end")),
+                            eb("t1.start", "<", ref("t2.start")).and("t2.end", "<", ref("t1.end")),
+                        ]),
+                    ]))
+                    .executeTakeFirst();
+
+                if (doesOverlap) {
+                    return {
+                        ok: false,
+                        status: HTTPStatus.CONFLICT,
+                        message: "Appointment overlaps with another.",
+                    };
+                }
+
+                return {
+                    ok: true,
+                };
+            },
+        });
+
         this.newScheduleSlotValidator = new Validator<NewScheduleSlot, [scheduleId: number]>({
             day: {
                 required: true,
                 validate: (value, key) => {
-                    const valid = typeof value === "string" && days.has(value);
+                    const valid = typeof value === "string" && daysSet.has(value);
                     return valid ? {
                         ok: true,
                     } : {
@@ -500,6 +658,58 @@ export class MedicsEndpoint extends Endpoint {
         this.sendOk(response, appointments);
     }
 
+    @PostMethod({ path: "/:rut/appointments", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    public async createAppointment(
+        request: Request<{ rut: string }, unknown, NewAppointment>,
+        response: Response
+    ): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const medic = await db
+            .selectFrom("medic")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!medic) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Medic ${rut} does not exist.`);
+            return;
+        }
+
+        const validationResult = await this.newAppointmentValidator.validate(request.body);
+
+        if (!validationResult.ok) {
+            this.sendError(response, validationResult.status, validationResult.message);
+            return;
+        }
+
+        const { patientRut, date, description, timeSlotId } = validationResult.value;
+
+        await db
+            .insertInto("appointment")
+            .values({
+                time_slot_id: timeSlotId,
+                date,
+                patient_rut: patientRut,
+                description,
+            })
+            .execute();
+
+        this.sendStatus(response, HTTPStatus.CREATED);
+    }
+
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
     public async getMedicSchedule(request: Request<{ rut: string }>, response: Response<ScheduleSlot[]>): Promise<void> {
         const { rut } = request.params;
@@ -592,15 +802,11 @@ export class MedicsEndpoint extends Endpoint {
             return;
         }
 
-        const { day, start, end } = validationResult.value;
-
         await db
             .insertInto("time_slot")
             .values({
                 "schedule_id": scheduleId,
-                day,
-                start,
-                end,
+                ...validationResult.value,
             })
             .execute();
 
@@ -862,6 +1068,13 @@ type Appointment = {
     end: string;
     description: string;
     confirmed: boolean;
+};
+
+type NewAppointment = {
+    patientRut: string;
+    date: string;
+    timeSlotId: number;
+    description: string;
 };
 
 type ScheduleSlot = Omit<TimeSlot, "schedule_id"> & {

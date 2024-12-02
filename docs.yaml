@@ -215,6 +215,20 @@ components:
         specialtyId:
           type: number
           minimum: 1
+    NewAppointment:
+      type: object
+      required:
+        - date
+        - timeSlotId
+        - description
+      properties:
+        date:
+          $ref: "#/components/schemas/Date"
+        timeSlotId:
+          type: number
+          minimum: 1
+        description:
+          type: string
     NewPatient:
       type: object
       required:
@@ -824,6 +838,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    post:
+      tags: [ Medics, Appointments ]
+      summary: Create a new appointment for the medic.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/NewAppointment"
+                - type: object
+                  required:
+                    - patientRut
+                  properties:
+                    patientRut:
+                      $ref: "#/components/schemas/Rut"
+      responses:
+        201:
+          description: Successfully created new appointment.
+        400:
+          description: Malformed rut or request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Request body creates conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     parameters:
       - name: rut
         in: path
@@ -1142,6 +1197,41 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         404:
           description: Patient does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags: [ Patients, Appointments ]
+      summary: Create a new appointment for the patient. Patients can only create appointments for themselves.
+      security:
+        - PatientSessionToken: [ ]
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewAppointment"
+      responses:
+        201:
+          description: Successfully created new appointment.
+        400:
+          description: Malformed rut or request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Patient does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: Request body creates conflicts with existing data.
           content:
             application/json:
               schema:
