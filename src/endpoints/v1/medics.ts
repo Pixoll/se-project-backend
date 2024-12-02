@@ -889,6 +889,70 @@ export class MedicsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 
+    @DeleteMethod({ path: "/:rut/appointments/:id", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
+    public async deleteAppointment(request: Request<{ rut: string; id: string }>, response: Response): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.MEDIC && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const id = await new Promise<bigint | null>(resolve => {
+            try {
+                resolve(BigInt(request.params.id));
+            } catch (_) {
+                resolve(null);
+            }
+        });
+
+        if (!id || id <= 0n) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid appointment id.");
+            return;
+        }
+
+        const medic = await db
+            .selectFrom("medic")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!medic) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Medic ${rut} does not exist.`);
+            return;
+        }
+
+        const idString = id.toString() as BigIntString;
+
+        const appointment = await db
+            .selectFrom("appointment as a")
+            .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
+            .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
+            .select("a.id")
+            .where("id", "=", idString)
+            .where("m.rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!appointment) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Appointment ${id} for medic ${rut} does not exist.`);
+            return;
+        }
+
+        await db
+            .deleteFrom("appointment")
+            .where("id", "=", idString)
+            .execute();
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
+    }
+
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
     public async getMedicSchedule(request: Request<{ rut: string }>, response: Response<ScheduleSlot[]>): Promise<void> {
         const { rut } = request.params;

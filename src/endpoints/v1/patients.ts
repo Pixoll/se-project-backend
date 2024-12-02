@@ -990,6 +990,68 @@ export class PatientsEndpoint extends Endpoint {
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
     }
 
+    @DeleteMethod({ path: "/:rut/appointments/:id", requiresAuthorization: true })
+    public async deleteAppointment(request: Request<{ rut: string; id: string }>, response: Response): Promise<void> {
+        const { rut } = request.params;
+
+        if (!isValidRut(rut)) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid rut.");
+            return;
+        }
+
+        const token = this.getToken(request)!;
+
+        if (token.type === TokenType.PATIENT && token.rut !== rut) {
+            this.sendError(response, HTTPStatus.UNAUTHORIZED, "Invalid session token.");
+            return;
+        }
+
+        const id = await new Promise<bigint | null>(resolve => {
+            try {
+                resolve(BigInt(request.params.id));
+            } catch (_) {
+                resolve(null);
+            }
+        });
+
+        if (!id || id <= 0n) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Invalid appointment id.");
+            return;
+        }
+
+        const patient = await db
+            .selectFrom("patient")
+            .select("rut")
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!patient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        const idString = id.toString() as BigIntString;
+
+        const appointment = await db
+            .selectFrom("appointment")
+            .select("id")
+            .where("id", "=", idString)
+            .where("patient_rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!appointment) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Appointment ${id} for patient ${rut} does not exist.`);
+            return;
+        }
+
+        await db
+            .deleteFrom("appointment")
+            .where("id", "=", idString)
+            .execute();
+
+        this.sendStatus(response, HTTPStatus.NO_CONTENT);
+    }
+
     @PostMethod("/:rut/session")
     public async createSession(
         request: Request<{ rut: string }, unknown, { password?: string }>,

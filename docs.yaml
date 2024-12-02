@@ -936,6 +936,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      tags: [ Medics, Appointments ]
+      summary: Delete a medic's appointment.
+      security:
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        201:
+          description: Successfully deleted the appointment.
+        400:
+          description: Malformed rut or id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Medic or appointment do not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     parameters:
       - name: rut
         in: path
@@ -1341,6 +1364,30 @@ paths:
                 $ref: "#/components/schemas/Error"
         409:
           description: Request body creates conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [ Patients, Appointments ]
+      summary: Delete a patient's appointment. Patient's can only delete their own.
+      security:
+        - PatientSessionToken: [ ]
+        - MedicSessionToken: [ ]
+        - AdminSessionToken: [ ]
+      responses:
+        201:
+          description: Successfully deleted the appointment.
+        400:
+          description: Malformed rut or id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Patient or appointment do not exist.
           content:
             application/json:
               schema:
