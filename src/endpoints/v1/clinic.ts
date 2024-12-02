@@ -102,6 +102,15 @@ export class ClinicEndpoint extends Endpoint {
 
     @PatchMethod({ requiresAuthorization: TokenType.ADMIN })
     public async updateClinic(request: Request<unknown, unknown, Partial<ClinicObject>>, response: Response): Promise<void> {
+        const clinic = await db
+            .selectFrom("clinic")
+            .select("id")
+            .executeTakeFirst();
+
+        if (!clinic) {
+            throw new Error("Clinic not found.");
+        }
+
         const validationResult = await this.clinicUpdateValidator.validate(request.body);
 
         if (!validationResult.ok) {
@@ -122,15 +131,6 @@ export class ClinicEndpoint extends Endpoint {
             openingTime,
             closingTime,
         } = validationResult.value;
-
-        const clinic = await db
-            .selectFrom("clinic")
-            .select("id")
-            .executeTakeFirst();
-
-        if (!clinic) {
-            throw new Error("Clinic not found.");
-        }
 
         let update = db
             .updateTable("clinic")
