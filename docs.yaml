@@ -9,7 +9,6 @@ tags:
   - name: Appointments
   - name: Clinic
   - name: Patients
-  - name: Ping
   - name: Medics
   - name: Misc
   - name: Schedule
@@ -684,7 +683,7 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
   /blood_types:
     get:
-      tags: [ Misc ]
+      tags: [ Patients, Misc ]
       summary: Get a list of all blood types.
       responses:
         200:
@@ -722,7 +721,7 @@ paths:
                 $ref: "#/components/schemas/Error"
   /insurance_types:
     get:
-      tags: [ Misc ]
+      tags: [ Patients, Misc ]
       summary: Get a list of all insurance types.
       responses:
         200:
@@ -1332,7 +1331,7 @@ paths:
           $ref: "#/components/schemas/Rut"
   /patients/{rut}/appointments/{id}:
     patch:
-      tags: [ Patient, Appointments ]
+      tags: [ Patients, Appointments ]
       summary: Update a patient's appointment. Patients can only modify their own appointments.
       security:
         - PatientSessionToken: [ ]
@@ -1460,7 +1459,7 @@ paths:
           $ref: "#/components/schemas/Rut"
   /ping:
     get:
-      tags: [ Ping ]
+      tags: [ Misc ]
       summary: Check if the API is available.
       responses:
         200:
