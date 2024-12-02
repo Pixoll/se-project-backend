@@ -12,7 +12,7 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
             // @ts-expect-error: key is never "global" at this point
             parsedValidators[key] = Object.freeze(typeof validator === "function" ? {
                 required: false,
-                validator: validator as ValidatorFunction,
+                validator: validator as ValidatorFunction<keyof T>,
             } : validator);
         }
 
@@ -23,7 +23,7 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
     public async validate(object: Record<string, any>, ...args: ExtraGlobalArgs): Promise<ValidationResult<T>> {
         const result = {} as T;
 
-        type ValidatorEntries = Array<[keyof T & string, ValidatorEntry]>;
+        type ValidatorEntries = Array<[keyof T & string, ValidatorEntry<keyof T>]>;
         for (const [key, validator] of Object.entries(this.validators) as ValidatorEntries) {
             const value = object[key];
 
@@ -57,15 +57,15 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
 }
 
 type ValidatorObject<T extends Record<string, any>, IncludeFunctionEntries extends boolean = true> = {
-    [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction | ValidatorEntry : ValidatorEntry;
+    [K in keyof T]: IncludeFunctionEntries extends true ? ValidatorFunction<K> | ValidatorEntry<K> : ValidatorEntry<K>;
 };
 
-type ValidatorEntry = {
+type ValidatorEntry<K> = {
     required: boolean;
-    validate: ValidatorFunction;
+    validate: ValidatorFunction<K>;
 };
 
-type ValidatorFunction = (value: unknown, key: string) => ValidatorResult | Promise<ValidatorResult>;
+type ValidatorFunction<K> = (value: unknown, key: K) => ValidatorResult | Promise<ValidatorResult>;
 
 type GlobalValidatorFunction<T, ExtraGlobalArgs extends any[]> = (
     object: T,
