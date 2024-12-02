@@ -263,6 +263,29 @@ begin
     if conflict then
         signal sqlstate "45000" set message_text = "Time slot has already started.";
     end if;
+
+    set conflict = (select true from appointment as a
+                    inner join time_slot as t1 on t1.id = a.time_slot_id
+                    inner join time_slot as t2 on t2.id = new.time_slot_id
+                    inner join medic as m1 on m1.schedule_id = t1.schedule_id
+                    inner join medic as m2 on m2.schedule_id = t2.schedule_id
+                    where a.date = new.date
+                    and (
+                        a.patient_rut = new.patient_rut
+                        or m1.rut = m2.rut
+                    )
+                    and (
+                        t1.start = t2.start
+                        or t1.end = t2.end
+                        or (t1.start < t2.start and t2.start < t1.end)
+                        or (t1.start < t2.end and t2.end < t1.end)
+                        or (t2.start < t1.start and t1.end < t2.end)
+                        or (t1.start < t2.start and t2.end < t1.end)
+                    ));
+
+    if conflict then
+        signal sqlstate "45000" set message_text = "Appointment overlaps with another.";
+    end if;
 end; $$
 delimiter ;
 
