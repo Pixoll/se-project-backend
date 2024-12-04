@@ -9,11 +9,10 @@ export class Validator<T extends Record<string, any>, ExtraGlobalArgs extends an
 
         type ValidatorEntries = Array<[keyof T & string, ValidatorObject<T>[keyof ValidatorObject<T>]]>;
         for (const [key, validator] of Object.entries(validators) as ValidatorEntries) {
-            // @ts-expect-error: key is never "global" at this point
             parsedValidators[key] = Object.freeze(typeof validator === "function" ? {
                 required: false,
-                validator: validator as ValidatorFunction<keyof T>,
-            } : validator);
+                validate: validator as ValidatorFunction<keyof T>,
+            } : validator as ValidatorEntry<keyof T & string>);
         }
 
         this.validators = Object.freeze(parsedValidators) as RecursiveReadonly<ValidatorObject<T, false>>;
