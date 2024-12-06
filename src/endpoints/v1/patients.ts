@@ -439,8 +439,7 @@ export class PatientsEndpoint extends Endpoint {
                 .selectFrom("time_slot")
                 .select(eb => [
                     eb("day", "=", day).as("doesDayMatch"),
-                    eb(sql`current_date()`, "=", date)
-                        .and(sql<number>`unix_timestamp(${date} ${start})`, "<", sql<number>`unix_timestamp()`)
+                    eb(sql<number>`unix_timestamp(${date} ${start})`, "<", sql<number>`unix_timestamp()`)
                         .as("hasAlreadyStarted"),
                 ])
                 .where("id", "=", timeSlotId)
