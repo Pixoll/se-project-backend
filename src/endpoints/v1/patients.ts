@@ -12,6 +12,7 @@ import {
     Patient,
     TimeSlot,
 } from "../../db";
+import { sendEmail } from "../../email/sender";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { MapNullToUndefined, SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
@@ -710,6 +711,8 @@ export class PatientsEndpoint extends Endpoint {
         const token = await generateToken(rut, TokenType.PATIENT);
 
         this.sendStatus(response, HTTPStatus.CREATED, { token });
+
+        await sendEmail(email, "Gracias por registrarte en nuestra clínica!", "Prometemos dar el mejor servicio posible.");
     }
 
     @PatchMethod({ path: "/:rut", requiresAuthorization: true })
@@ -870,7 +873,7 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient")
-            .select("rut")
+            .select("email")
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -888,6 +891,17 @@ export class PatientsEndpoint extends Endpoint {
 
         const { date, description, timeSlotId } = validationResult.value;
 
+        const timeSlot = await db
+            .selectFrom("time_slot")
+            .select("start")
+            .where("id", "=", timeSlotId)
+            .executeTakeFirst();
+
+        if (!timeSlot) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Time slot ${timeSlot} does not exist.`);
+            return;
+        }
+
         await db
             .insertInto("appointment")
             .values({
@@ -899,6 +913,12 @@ export class PatientsEndpoint extends Endpoint {
             .execute();
 
         this.sendStatus(response, HTTPStatus.CREATED);
+
+        await sendEmail(
+            patient.email,
+            "Nueva cita médica registrada",
+            `Tu cita médica para el ${date} a las ${timeSlot.start} ha quedado registrada y espera confirmación.`
+        );
     }
 
     @PatchMethod({ path: "/:rut/appointments/:id", requiresAuthorization: true })
@@ -935,7 +955,7 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient")
-            .select("rut")
+            .select("email")
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -947,12 +967,14 @@ export class PatientsEndpoint extends Endpoint {
         const idString = id.toString() as BigIntString;
 
         const appointment = await db
-            .selectFrom("appointment")
+            .selectFrom("appointment as a")
+            .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
             .select([
-                "date",
-                "time_slot_id as timeSlotId",
-                "description",
-                "confirmed",
+                "a.date",
+                "a.time_slot_id as timeSlotId",
+                "a.description",
+                "a.confirmed",
+                "t.start",
             ])
             .where("id", "=", idString)
             .where("patient_rut", "=", rut)
@@ -989,6 +1011,14 @@ export class PatientsEndpoint extends Endpoint {
         }
 
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
+
+        if (confirmed) {
+            await sendEmail(
+                patient.email,
+                "Cita médica confirmada",
+                `Tu cita médica para el ${appointment.date} a las ${appointment.start} ha sido confirmada.`
+            );
+        }
     }
 
     @DeleteMethod({ path: "/:rut/appointments/:id", requiresAuthorization: true })
