@@ -635,7 +635,7 @@ export class PatientsEndpoint extends Endpoint {
     @PostMethod("/:rut")
     public async createPatient(
         request: Request<{ rut: string }, unknown, PatientBody>,
-        response: Response
+        response: Response<{ token: string }>
     ): Promise<void> {
         const { rut } = request.params;
 
@@ -702,7 +702,9 @@ export class PatientsEndpoint extends Endpoint {
             })
             .execute();
 
-        this.sendStatus(response, HTTPStatus.CREATED);
+        const token = await generateToken(rut, TokenType.PATIENT);
+
+        this.sendStatus(response, HTTPStatus.CREATED, { token });
     }
 
     @PatchMethod({ path: "/:rut", requiresAuthorization: true })
