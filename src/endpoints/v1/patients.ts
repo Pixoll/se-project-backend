@@ -29,7 +29,7 @@ export class PatientsEndpoint extends Endpoint {
     public constructor() {
         super("/patients");
 
-        const days = ["mo", "tu", "we", "th", "fr", "sa", "su"] as const;
+        const days = ["su", "mo", "tu", "we", "th", "fr", "sa"] as const;
 
         this.newPatientValidator = new Validator<PatientBody>({
             firstName: {
@@ -427,7 +427,7 @@ export class PatientsEndpoint extends Endpoint {
                 },
             },
         }, async ({ date, timeSlotId }, patientRut) => {
-            const day = days[(new Date(date).getUTCDay() + 1) % 7];
+            const day = days[new Date(date).getUTCDay()];
 
             const { start } = await db
                 .selectFrom("time_slot")
@@ -439,13 +439,13 @@ export class PatientsEndpoint extends Endpoint {
                 .selectFrom("time_slot")
                 .select(eb => [
                     eb("day", "=", day).as("doesDayMatch"),
-                    eb(sql<number>`unix_timestamp(${date} ${start})`, "<", sql<number>`unix_timestamp()`)
+                    eb(sql<number>`unix_timestamp(${date + " " + start})`, "<", sql<number>`unix_timestamp()`)
                         .as("hasAlreadyStarted"),
                 ])
                 .where("id", "=", timeSlotId)
                 .executeTakeFirst() ?? {};
 
-            if (!doesDayMatch) {
+            if (`${doesDayMatch}` === "0") {
                 return {
                     ok: false,
                     status: HTTPStatus.CONFLICT,
@@ -453,7 +453,7 @@ export class PatientsEndpoint extends Endpoint {
                 };
             }
 
-            if (hasAlreadyStarted) {
+            if (`${hasAlreadyStarted}` === "1") {
                 return {
                     ok: false,
                     status: HTTPStatus.CONFLICT,
