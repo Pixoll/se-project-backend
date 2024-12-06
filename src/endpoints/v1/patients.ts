@@ -1052,7 +1052,7 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient")
-            .select("rut")
+            .select("email")
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -1064,10 +1064,14 @@ export class PatientsEndpoint extends Endpoint {
         const idString = id.toString() as BigIntString;
 
         const appointment = await db
-            .selectFrom("appointment")
-            .select("id")
-            .where("id", "=", idString)
-            .where("patient_rut", "=", rut)
+            .selectFrom("appointment as a")
+            .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
+            .select([
+                "a.date",
+                "t.start",
+            ])
+            .where("a.id", "=", idString)
+            .where("a.patient_rut", "=", rut)
             .executeTakeFirst();
 
         if (!appointment) {
@@ -1081,6 +1085,12 @@ export class PatientsEndpoint extends Endpoint {
             .execute();
 
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
+
+        await sendEmail(
+            patient.email,
+            "Cita médica cancelada",
+            `Tu cita médica para el ${appointment.date} a las ${appointment.start} ha sido cancelada.`
+        );
     }
 
     @PostMethod("/:rut/session")
