@@ -576,7 +576,7 @@ export class MedicsEndpoint extends Endpoint {
         this.sendOk(response, medics);
     }
 
-    @GetMethod()
+    @GetMethod("/:rut")
     public async getMedic(request: Request<{ rut: string }>, response: Response<Medic>): Promise<void> {
         const { rut } = request.params;
 
