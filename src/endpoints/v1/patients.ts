@@ -586,7 +586,7 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient as p")
-            .innerJoin("blood_type as bt", "bt.id", "p.blood_type_id")
+            .leftJoin("blood_type as bt", "bt.id", "p.blood_type_id")
             .innerJoin("insurance_type as it", "it.id", "p.insurance_type_id")
             .select([
                 "p.first_name as firstName",
@@ -624,10 +624,10 @@ export class PatientsEndpoint extends Endpoint {
             phone: patient.phone,
             birthDate: patient.birthDate,
             gender: patient.gender,
-            weight: patient.weight,
-            height: patient.height,
-            rhesusFactor: patient.rhesusFactor,
-            bloodType: patient.bloodType,
+            ...patient.weight && { weight: patient.weight },
+            ...patient.height && { height: patient.height },
+            ...patient.rhesusFactor && { rhesusFactor: patient.rhesusFactor },
+            ...patient.bloodType && { bloodType: patient.bloodType },
             insuranceType: patient.insuranceType,
             ...patient.allergiesHistory && { allergiesHistory: patient.allergiesHistory },
             ...patient.morbidityHistory && { morbidityHistory: patient.morbidityHistory },
@@ -1134,6 +1134,6 @@ type PatientResponse = SnakeToCamelRecord<Omit<MapNullToUndefined<Patient>,
     | "salt"
     | "session_token"
 >> & {
-    bloodType: string;
+    bloodType?: string;
     insuranceType: string;
 };

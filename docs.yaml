@@ -324,12 +324,7 @@ components:
         - phone
         - birthDate
         - gender
-        - weight
-        - height
-        - rhesusFactor
-        - bloodType
         - insuranceType
-        - medicalRecord
       properties:
         firstName:
           type: string

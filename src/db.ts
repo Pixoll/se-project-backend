@@ -358,22 +358,22 @@ export type PatientTable = {
      */
     gender: string;
     /**
-     * - SQL: `weight float not null check (weight > 0)`
+     * - SQL: `weight float check (weight is null or weight > 0) default null`
      */
-    weight: number;
+    weight: number | null;
     /**
-     * - SQL: `height float not null check (height > 0)`
+     * - SQL: `height float check (height is null or height > 0) default null`
      */
-    height: number;
+    height: number | null;
     /**
-     * - SQL: `rhesus_factor enum("+", "-") not null`
+     * - SQL: `rhesus_factor enum("+", "-") default null`
      */
-    rhesus_factor: "+" | "-";
+    rhesus_factor: "+" | "-" | null;
     /**
-     * - SQL: `blood_type_id int unsigned not null`
+     * - SQL: `blood_type_id int unsigned default null`
      * - Foreign key: `blood_type.id`
      */
-    blood_type_id: number;
+    blood_type_id: number | null;
     /**
      * - SQL: `insurance_type_id int unsigned not null`
      * - Foreign key: `insurance_type.id`
