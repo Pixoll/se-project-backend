@@ -56,6 +56,7 @@ export class ScheduleEndpoint extends Endpoint {
                     .where("a.date" ,">=", sql<string>`current_date()`)
                 }), cast("[]" as json))`.as("appointmentDates"),
             ])
+            .orderBy("t.start", "asc")
             .where("t.active", "=", true);
 
         if (medics.length > 0) {
