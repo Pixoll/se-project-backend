@@ -162,70 +162,64 @@ export class PatientsEndpoint extends Endpoint {
                     };
                 },
             },
-            weight: {
-                required: true,
-                validate: (value, key) => {
-                    const valid = !!value && typeof value === "number" && value > 0;
-                    return valid ? {
-                        ok: true,
-                    } : {
-                        ok: false,
-                        status: HTTPStatus.BAD_REQUEST,
-                        message: `Invalid ${key}.`,
-                    };
-                },
+            weight: (value, key) => {
+                const valid = !value || (typeof value === "number" && value > 0);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
             },
-            height: {
-                required: true,
-                validate: (value, key) => {
-                    const valid = !!value && typeof value === "number" && value > 0;
-                    return valid ? {
-                        ok: true,
-                    } : {
-                        ok: false,
-                        status: HTTPStatus.BAD_REQUEST,
-                        message: `Invalid ${key}.`,
-                    };
-                },
+            height: (value, key) => {
+                const valid = !value || (typeof value === "number" && value > 0);
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
             },
-            rhesusFactor: {
-                required: true,
-                validate: (value, key) => {
-                    const valid = !!value && typeof value === "string" && ["+", "-"].includes(value);
-                    return valid ? {
-                        ok: true,
-                    } : {
-                        ok: false,
-                        status: HTTPStatus.BAD_REQUEST,
-                        message: `Invalid ${key}.`,
-                    };
-                },
+            rhesusFactor: (value, key) => {
+                const valid = !value || (typeof value === "string" && ["+", "-"].includes(value));
+                return valid ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
             },
-            bloodTypeId: {
-                required: true,
-                validate: async (value, key) => {
-                    if (!(value && typeof value === "number" && value > 0)) {
-                        return {
-                            ok: false,
-                            status: HTTPStatus.BAD_REQUEST,
-                            message: `Invalid ${key}.`,
-                        };
-                    }
+            bloodTypeId: async (value, key) => {
+                if (!value) {
+                    return {
+                        ok: true,
+                    };
+                }
 
-                    const bloodType = await db
-                        .selectFrom("blood_type")
-                        .select("id")
-                        .where("id", "=", value)
-                        .executeTakeFirst();
-
-                    return bloodType ? {
-                        ok: true,
-                    } : {
+                if (typeof value !== "number" || value <= 0) {
+                    return {
                         ok: false,
                         status: HTTPStatus.BAD_REQUEST,
                         message: `Invalid ${key}.`,
                     };
-                },
+                }
+
+                const bloodType = await db
+                    .selectFrom("blood_type")
+                    .select("id")
+                    .where("id", "=", value)
+                    .executeTakeFirst();
+
+                return bloodType ? {
+                    ok: true,
+                } : {
+                    ok: false,
+                    status: HTTPStatus.BAD_REQUEST,
+                    message: `Invalid ${key}.`,
+                };
             },
             insuranceTypeId: {
                 required: true,
