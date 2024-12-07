@@ -932,7 +932,7 @@ export class MedicsEndpoint extends Endpoint {
                     ifnull(concat(" ", ${ref("p.second_last_name")}), "")
                 )`.as("patientFullName"),
             ])
-            .where("id", "=", idString)
+            .where("a.id", "=", idString)
             .where("m.rut", "=", rut)
             .executeTakeFirst();
 

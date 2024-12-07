@@ -531,12 +531,12 @@ export class PatientsEndpoint extends Endpoint {
                 };
             },
         }, async (appointment, oldAppointment, patientRut) => {
-            const validationResult = await this.newAppointmentValidator.globalValidator!({
-                ...oldAppointment,
-                ...appointment,
-            }, patientRut);
-
-            if (!validationResult.ok) return validationResult;
+            // const validationResult = await this.newAppointmentValidator.globalValidator!({
+            //     ...oldAppointment,
+            //     ...appointment,
+            // }, patientRut);
+            //
+            // if (!validationResult.ok) return validationResult;
 
             const { timeSlotId } = appointment;
 
