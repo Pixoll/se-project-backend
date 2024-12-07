@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { createTransport } from "nodemailer";
+import logger from "../logger";
 
 config();
 
@@ -13,13 +14,21 @@ const transporter = createTransport({
     },
 });
 
-export async function sendEmail(email: string, subject: string, body: string): Promise<boolean> {
-    const info = await transporter.sendMail({
-        from: `"Clinic" ${process.env.EMAIL}`,
-        to: email,
-        subject: subject,
-        text: body,
-    }).catch(console.error);
+export async function sendEmail(email: string, subject: string, body: string): Promise<void> {
+    try {
+        const info = await transporter.sendMail({
+            from: `"Clinic" ${process.env.EMAIL}`,
+            to: email,
+            subject: subject,
+            text: body,
+        }).catch(console.error);
 
-    return !!info?.messageId;
+        if (info?.messageId) {
+            logger.log(`Sent email ${info?.messageId}`);
+        } else {
+            logger.error(`Failed to send email to ${email}`);
+        }
+    } catch (error) {
+        logger.error(`Failed to send email to ${email}`, error);
+    }
 }
