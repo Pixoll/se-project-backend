@@ -725,11 +725,20 @@ export class MedicsEndpoint extends Endpoint {
         const appointments = await db
             .selectFrom("appointment as a")
             .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
-            .select([
+            .innerJoin("patient as p", "p.rut", "a.patient_rut")
+            .select(({ ref }) => [
                 "a.id",
                 "a.patient_rut as patientRut",
+                sql<string>`concat(
+                    ${ref("p.first_name")}, " ",
+                    ifnull(concat(${ref("p.second_name")}, " "), ""),
+                    ${ref("p.first_last_name")},
+                    ifnull(concat(" ", ${ref("p.second_last_name")}), "")
+                )`.as("patientFullName"),
+                "p.birth_date as patientBirthDate",
+                "p.email as patientEmail",
+                "p.phone as patientPhone",
                 "a.date",
-                "t.day",
                 "t.start",
                 "t.end",
                 "a.description",
@@ -1269,8 +1278,11 @@ type MedicUpdate = Partial<SnakeToCamelRecord<Omit<Employee,
 type Appointment = {
     id: BigIntString;
     patientRut: string;
+    patientFullName: string;
+    patientBirthDate: string;
+    patientEmail: string;
+    patientPhone: number;
     date: string;
-    day: TimeSlot["day"];
     start: string;
     end: string;
     description: string;
