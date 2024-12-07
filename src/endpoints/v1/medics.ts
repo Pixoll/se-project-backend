@@ -1139,7 +1139,7 @@ export class MedicsEndpoint extends Endpoint {
 
     @PostMethod({ path: "/:rut/schedule/slots", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
     public async createMedicScheduleSlot(
-        request: Request<{ rut: string }, unknown, NewScheduleSlot>,
+        request: Request<{ rut: string }, unknown, NewScheduleSlot[]>,
         response: Response
     ): Promise<void> {
         const { rut } = request.params;
@@ -1167,19 +1167,33 @@ export class MedicsEndpoint extends Endpoint {
             return;
         }
 
-        const validationResult = await this.newScheduleSlotValidator.validate(request.body, scheduleId);
-
-        if (!validationResult.ok) {
-            this.sendError(response, validationResult.status, validationResult.message);
+        if (!Array.isArray(request.body)
+            || request.body.some(e => typeof e !== "object" && !Array.isArray(e))
+        ) {
+            this.sendError(response, HTTPStatus.BAD_REQUEST, "Request body must be an array of new slots.");
             return;
+        }
+
+        const slots: NewScheduleSlot[] = [];
+
+        for (const slot of request.body) {
+            // eslint-disable-next-line no-await-in-loop
+            const validationResult = await this.newScheduleSlotValidator.validate(slot, scheduleId);
+
+            if (!validationResult.ok) {
+                this.sendError(response, validationResult.status, validationResult.message);
+                return;
+            }
+
+            slots.push(validationResult.value);
         }
 
         await db
             .insertInto("time_slot")
-            .values({
+            .values(slots.map(slot => ({
                 "schedule_id": scheduleId,
-                ...validationResult.value,
-            })
+                ...slot,
+            })))
             .execute();
 
         this.sendStatus(response, HTTPStatus.CREATED);
