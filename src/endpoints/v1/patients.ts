@@ -873,7 +873,15 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient")
-            .select("email")
+            .select(({ ref }) => [
+                "email",
+                sql<string>`concat(
+                    ${ref("first_name")}, " ",
+                    ifnull(concat(${ref("second_name")}, " "), ""),
+                    ${ref("first_last_name")},
+                    ifnull(concat(" ", ${ref("second_last_name")}), "")
+                )`.as("fullName"),
+            ])
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -892,9 +900,20 @@ export class PatientsEndpoint extends Endpoint {
         const { date, description, timeSlotId } = validationResult.value;
 
         const timeSlot = await db
-            .selectFrom("time_slot")
-            .select("start")
-            .where("id", "=", timeSlotId)
+            .selectFrom("time_slot as t")
+            .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
+            .innerJoin("employee as e", "e.rut", "m.rut")
+            .select(({ ref }) => [
+                "e.email",
+                "t.start",
+                sql<string>`concat(
+                    ${ref("e.first_name")}, " ",
+                    ifnull(concat(${ref("e.second_name")}, " "), ""),
+                    ${ref("e.first_last_name")},
+                    ifnull(concat(" ", ${ref("e.second_last_name")}), "")
+                )`.as("fullName"),
+            ])
+            .where("t.id", "=", timeSlotId)
             .executeTakeFirst();
 
         if (!timeSlot) {
@@ -917,7 +936,15 @@ export class PatientsEndpoint extends Endpoint {
         await sendEmail(
             patient.email,
             "Nueva cita médica registrada",
-            `Tu cita médica para el ${date} a las ${timeSlot.start} ha quedado registrada y espera confirmación.`
+            `Tu cita médica para el ${date} a las ${timeSlot.start} con ${timeSlot.fullName} ha quedado registrada y espera `
+            + "confirmación."
+        );
+
+        await sendEmail(
+            timeSlot.email,
+            "Nueva cita médica registrada",
+            `Una nueva cita médica para el ${date} a las ${timeSlot.start} con ${patient.fullName} ha quedado registrada y `
+            + "espera confirmación."
         );
     }
 
@@ -955,7 +982,15 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient")
-            .select("email")
+            .select(({ ref }) => [
+                "email",
+                sql<string>`concat(
+                    ${ref("first_name")}, " ",
+                    ifnull(concat(${ref("second_name")}, " "), ""),
+                    ${ref("first_last_name")},
+                    ifnull(concat(" ", ${ref("second_last_name")}), "")
+                )`.as("fullName"),
+            ])
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -969,12 +1004,21 @@ export class PatientsEndpoint extends Endpoint {
         const appointment = await db
             .selectFrom("appointment as a")
             .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
-            .select([
+            .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
+            .innerJoin("employee as e", "e.rut", "m.rut")
+            .select(({ ref }) => [
                 "a.date",
                 "a.time_slot_id as timeSlotId",
                 "a.description",
                 "a.confirmed",
                 "t.start",
+                "e.email as medicEmail",
+                sql<string>`concat(
+                    ${ref("e.first_name")}, " ",
+                    ifnull(concat(${ref("e.second_name")}, " "), ""),
+                    ${ref("e.first_last_name")},
+                    ifnull(concat(" ", ${ref("e.second_last_name")}), "")
+                )`.as("medicFullName"),
             ])
             .where("id", "=", idString)
             .where("patient_rut", "=", rut)
@@ -1016,7 +1060,15 @@ export class PatientsEndpoint extends Endpoint {
             await sendEmail(
                 patient.email,
                 "Cita médica confirmada",
-                `Tu cita médica para el ${appointment.date} a las ${appointment.start} ha sido confirmada.`
+                `Tu cita médica para el ${appointment.date} a las ${appointment.start} con ${appointment.medicFullName} ha `
+                + "sido confirmada."
+            );
+
+            await sendEmail(
+                appointment.medicEmail,
+                "Cita médica confirmada",
+                `Una cita médica para el ${appointment.date} a las ${appointment.start} con ${patient.fullName} ha sido `
+                + "confirmada."
             );
         }
     }
@@ -1052,7 +1104,15 @@ export class PatientsEndpoint extends Endpoint {
 
         const patient = await db
             .selectFrom("patient")
-            .select("email")
+            .select(({ ref }) => [
+                "email",
+                sql<string>`concat(
+                    ${ref("first_name")}, " ",
+                    ifnull(concat(${ref("second_name")}, " "), ""),
+                    ${ref("first_last_name")},
+                    ifnull(concat(" ", ${ref("second_last_name")}), "")
+                )`.as("fullName"),
+            ])
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -1066,9 +1126,18 @@ export class PatientsEndpoint extends Endpoint {
         const appointment = await db
             .selectFrom("appointment as a")
             .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
-            .select([
+            .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
+            .innerJoin("employee as e", "e.rut", "m.rut")
+            .select(({ ref }) => [
                 "a.date",
                 "t.start",
+                "e.email as medicEmail",
+                sql<string>`concat(
+                    ${ref("e.first_name")}, " ",
+                    ifnull(concat(${ref("e.second_name")}, " "), ""),
+                    ${ref("e.first_last_name")},
+                    ifnull(concat(" ", ${ref("e.second_last_name")}), "")
+                )`.as("medicFullName"),
             ])
             .where("a.id", "=", idString)
             .where("a.patient_rut", "=", rut)
@@ -1089,7 +1158,15 @@ export class PatientsEndpoint extends Endpoint {
         await sendEmail(
             patient.email,
             "Cita médica cancelada",
-            `Tu cita médica para el ${appointment.date} a las ${appointment.start} ha sido cancelada.`
+            `Tu cita médica para el ${appointment.date} a las ${appointment.start} con ${appointment.medicFullName} ha sido `
+            + "cancelada."
+        );
+
+        await sendEmail(
+            appointment.medicEmail,
+            "Cita médica cancelada",
+            `Una cita médica para el ${appointment.date} a las ${appointment.start} con ${patient.fullName} ha sido `
+            + "cancelada."
         );
     }
 
