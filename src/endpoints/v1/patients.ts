@@ -1020,8 +1020,8 @@ export class PatientsEndpoint extends Endpoint {
                     ifnull(concat(" ", ${ref("e.second_last_name")}), "")
                 )`.as("medicFullName"),
             ])
-            .where("id", "=", idString)
-            .where("patient_rut", "=", rut)
+            .where("a.id", "=", idString)
+            .where("a.patient_rut", "=", rut)
             .executeTakeFirst();
 
         if (!appointment) {
