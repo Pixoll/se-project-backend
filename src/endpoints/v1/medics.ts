@@ -11,6 +11,7 @@ import {
     isValidRut,
     TimeSlot,
 } from "../../db";
+import { sendEmail } from "../../email/sender";
 import { generateToken, revokeToken, TokenType } from "../../tokens";
 import { SnakeToCamelRecord } from "../../types";
 import { DeleteMethod, Endpoint, GetMethod, HTTPStatus, PatchMethod, PostMethod } from "../base";
@@ -774,8 +775,17 @@ export class MedicsEndpoint extends Endpoint {
         }
 
         const medic = await db
-            .selectFrom("medic")
-            .select("rut")
+            .selectFrom("medic as m")
+            .innerJoin("employee as e", "e.rut", "m.rut")
+            .select(({ ref }) => [
+                "e.email",
+                sql<string>`concat(
+                    ${ref("e.first_name")}, " ",
+                    ifnull(concat(${ref("e.second_name")}, " "), ""),
+                    ${ref("e.first_last_name")},
+                    ifnull(concat(" ", ${ref("e.second_last_name")}), "")
+                )`.as("fullName"),
+            ])
             .where("rut", "=", rut)
             .executeTakeFirst();
 
@@ -793,6 +803,36 @@ export class MedicsEndpoint extends Endpoint {
 
         const { patientRut, date, description, timeSlotId } = validationResult.value;
 
+        const patient = await db
+            .selectFrom("patient")
+            .select(({ ref }) => [
+                "email",
+                sql<string>`concat(
+                    ${ref("first_name")}, " ",
+                    ifnull(concat(${ref("second_name")}, " "), ""),
+                    ${ref("first_last_name")},
+                    ifnull(concat(" ", ${ref("second_last_name")}), "")
+                )`.as("fullName"),
+            ])
+            .where("rut", "=", rut)
+            .executeTakeFirst();
+
+        if (!patient) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Patient ${rut} does not exist.`);
+            return;
+        }
+
+        const timeSlot = await db
+            .selectFrom("time_slot")
+            .select("start")
+            .where("id", "=", timeSlotId)
+            .executeTakeFirst();
+
+        if (!timeSlot) {
+            this.sendError(response, HTTPStatus.NOT_FOUND, `Time slot ${timeSlot} does not exist.`);
+            return;
+        }
+
         await db
             .insertInto("appointment")
             .values({
@@ -804,6 +844,20 @@ export class MedicsEndpoint extends Endpoint {
             .execute();
 
         this.sendStatus(response, HTTPStatus.CREATED);
+
+        await sendEmail(
+            patient.email,
+            "Nueva cita médica registrada",
+            `Tu cita médica para el ${date} a las ${timeSlot.start} con ${medic.fullName} ha quedado registrada y espera `
+            + "confirmación."
+        );
+
+        await sendEmail(
+            medic.email,
+            "Nueva cita médica registrada",
+            `Una nueva cita médica para el ${date} a las ${timeSlot.start} con ${patient.fullName} ha quedado registrada y `
+            + "espera confirmación."
+        );
     }
 
     @PatchMethod({ path: "/:rut/appointments/:id", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
@@ -855,11 +909,28 @@ export class MedicsEndpoint extends Endpoint {
             .selectFrom("appointment as a")
             .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
             .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
-            .select([
+            .innerJoin("employee as e", "e.rut", "m.rut")
+            .innerJoin("patient as p", "p.rut", "a.patient_rut")
+            .select(({ ref }) => [
                 "a.date",
+                "t.start",
                 "a.time_slot_id as timeSlotId",
                 "a.description",
                 "a.confirmed",
+                "e.email as medicEmail",
+                sql<string>`concat(
+                    ${ref("e.first_name")}, " ",
+                    ifnull(concat(${ref("e.second_name")}, " "), ""),
+                    ${ref("e.first_last_name")},
+                    ifnull(concat(" ", ${ref("e.second_last_name")}), "")
+                )`.as("medicFullName"),
+                "p.email as patientEmail",
+                sql<string>`concat(
+                    ${ref("p.first_name")}, " ",
+                    ifnull(concat(${ref("p.second_name")}, " "), ""),
+                    ${ref("p.first_last_name")},
+                    ifnull(concat(" ", ${ref("p.second_last_name")}), "")
+                )`.as("patientFullName"),
             ])
             .where("id", "=", idString)
             .where("m.rut", "=", rut)
@@ -896,6 +967,22 @@ export class MedicsEndpoint extends Endpoint {
         }
 
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
+
+        if (confirmed) {
+            await sendEmail(
+                appointment.patientEmail,
+                "Cita médica confirmada",
+                `Tu cita médica para el ${appointment.date} a las ${appointment.start} con ${appointment.medicFullName} ha `
+                + "sido confirmada."
+            );
+
+            await sendEmail(
+                appointment.medicEmail,
+                "Cita médica confirmada",
+                `Una cita médica para el ${appointment.date} a las ${appointment.start} con ${appointment.patientFullName} `
+                + "ha sido confirmada."
+            );
+        }
     }
 
     @DeleteMethod({ path: "/:rut/appointments/:id", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
@@ -944,7 +1031,26 @@ export class MedicsEndpoint extends Endpoint {
             .selectFrom("appointment as a")
             .innerJoin("time_slot as t", "t.id", "a.time_slot_id")
             .innerJoin("medic as m", "m.schedule_id", "t.schedule_id")
-            .select("a.id")
+            .innerJoin("employee as e", "e.rut", "m.rut")
+            .innerJoin("patient as p", "p.rut", "a.patient_rut")
+            .select(({ ref }) => [
+                "a.date",
+                "t.start",
+                "e.email as medicEmail",
+                sql<string>`concat(
+                    ${ref("e.first_name")}, " ",
+                    ifnull(concat(${ref("e.second_name")}, " "), ""),
+                    ${ref("e.first_last_name")},
+                    ifnull(concat(" ", ${ref("e.second_last_name")}), "")
+                )`.as("medicFullName"),
+                "p.email as patientEmail",
+                sql<string>`concat(
+                    ${ref("p.first_name")}, " ",
+                    ifnull(concat(${ref("p.second_name")}, " "), ""),
+                    ${ref("p.first_last_name")},
+                    ifnull(concat(" ", ${ref("p.second_last_name")}), "")
+                )`.as("patientFullName"),
+            ])
             .where("id", "=", idString)
             .where("m.rut", "=", rut)
             .executeTakeFirst();
@@ -960,6 +1066,20 @@ export class MedicsEndpoint extends Endpoint {
             .execute();
 
         this.sendStatus(response, HTTPStatus.NO_CONTENT);
+
+        await sendEmail(
+            appointment.patientEmail,
+            "Cita médica cancelada",
+            `Tu cita médica para el ${appointment.date} a las ${appointment.start} con ${appointment.medicFullName} ha sido `
+            + "cancelada."
+        );
+
+        await sendEmail(
+            appointment.medicEmail,
+            "Cita médica cancelada",
+            `Una cita médica para el ${appointment.date} a las ${appointment.start} con ${appointment.patientFullName} ha `
+            + "sido cancelada."
+        );
     }
 
     @GetMethod({ path: "/:rut/schedule", requiresAuthorization: [TokenType.MEDIC, TokenType.ADMIN] })
