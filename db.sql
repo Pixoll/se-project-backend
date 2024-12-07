@@ -418,7 +418,8 @@ insert into time_slot (schedule_id, day, start, end) values
     (2, "sa", "20:00", "20:30"),
     (2, "sa", "20:30", "21:00"),
     (2, "su", "21:00", "21:30"),
-    (2, "su", "21:30", "22:00");
+    (2, "su", "21:30", "22:00"),
+    (1, "mo", "13:00", "13:30");
 
 insert into employee values
     -- password: asdfghjkl
